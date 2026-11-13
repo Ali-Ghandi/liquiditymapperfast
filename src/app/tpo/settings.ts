@@ -21,8 +21,8 @@ export type TpoPeriod = 'day' | 'week' | 'sessions';
 export const TPO_PERIODS: readonly TpoPeriod[] = ['day', 'week', 'sessions'];
 /** Blocks: letters while a block is tall enough, else plain blocks (`auto`), or always one of the two. */
 export type TpoLook = 'auto' | 'blocks' | 'letters';
-/** A block's colour: the time of its half hour (early to late), or how many blocks its row holds (thin to full). */
-export type TpoColour = 'time' | 'count';
+/** A block's colour: the time of its half hour (early to late), or how many blocks its row holds (thin to full), in a ramp of hues or (`ink`, fork) in the page's own ink. */
+export type TpoColour = 'time' | 'count' | 'ink';
 /** Block lengths offered, in minutes (0: by the period, 30 for a day or a session, 240 for a week). */
 export const TPO_BLOCKS: readonly number[] = [0, 15, 30, 60, 240];
 
@@ -117,7 +117,7 @@ export function readTpo(saved: unknown): TpoSettings {
     block: typeof s.block === 'number' && TPO_BLOCKS.includes(s.block) ? s.block : d.block,
     count, source: s.source === 'chosen' ? 'chosen' : 'chart', picks: readVwapPicks(s.picks), v: 2,
     look: s.look === 'blocks' || s.look === 'letters' ? s.look : 'auto',
-    colour: s.colour === 'count' ? 'count' : 'time',
+    colour: s.colour === 'count' || s.colour === 'ink' ? s.colour : 'time',
     share: typeof s.share === 'number' && Number.isFinite(s.share) && s.share >= 50 && s.share <= 90 ? Math.round(s.share) : d.share,
     unfold: flag(s.unfold, d.unfold), hollow: flag(s.hollow, d.hollow), ib: flag(s.ib, d.ib), calls: flag(s.calls, d.calls),
     stats: flag(s.stats, d.stats), lines: flag(s.lines, d.lines), rows, splits: edits(s.splits, splitEntry), merges: edits(s.merges, e => e.length > 0),

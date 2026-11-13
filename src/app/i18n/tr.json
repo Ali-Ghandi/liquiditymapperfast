@@ -2988,5 +2988,8 @@
   "other": "{n} dahil edilen pencere"
  },
  "Each included window is weighted by its overlap with the selection. Windows missing a venue are left out, so the set of venues stays the same.": "Dahil edilen her pencere, seçimle kesişimine göre ağırlıklandırılır. Bir borsası eksik olan pencereler dışarıda bırakılır; böylece borsa kümesi aynı kalır.",
- "No column of this selection has a price centre: one side of the book is empty.": "Bu seçimdeki hiçbir sütunun fiyat merkezi yok: emir defterinin bir tarafı boş."
+ "No column of this selection has a price centre: one side of the book is empty.": "Bu seçimdeki hiçbir sütunun fiyat merkezi yok: emir defterinin bir tarafı boş.",
+ "Show the heatmap": "Isı haritasını göster",
+ "The order book's resting liquidity drawn over the map. Off: the map shows the candles and its overlays alone.": "Emir defterinde bekleyen likidite haritanın üzerine çizilir. Kapalı: harita yalnızca mumları ve katmanlarını gösterir.",
+ "In ink": "Mürekkeple"
 }

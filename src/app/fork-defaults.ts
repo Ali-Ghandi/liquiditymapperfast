@@ -8,11 +8,15 @@ import { DEFAULTS_REV } from './store.ts';
  * across the chart, two anchored VWAPs and the 365-day rolling VWAP with shorter ones, Hyperliquid's liquidation levels, an Open Interest pane over
  * every perpetual (who opened and closed, with its table) and a Scripts pane with the spot and perpetual CVD and Toxic Flows.
  *
+ * Revision 2: no order-book heatmap on the map, and the TPO (a week's Market Profile) on; browsers seeded before are migrated once.
+ *
  * It only writes what a browser has not kept yet: a page that already saved its settings (`hlm-app-v2`) is left exactly as it is, and every value
  * written here still goes through the page's own readers (`readSettings`, `readScripts`), as a layouts file does. Everything stays changeable.
  */
 
 const APP_KEY = 'hlm-app-v2', LAYOUT_KEY = 'hlm-layout-v3', TOUR_KEY = 'hlm-tour-v1', SEEDED_KEY = 'lmf-fork-seeded-v1';
+/** The fork's revision of its defaults a browser has been brought to (`migrateForkDefaults`); none: revision 1, the first desk. */
+export const FORK_REV_KEY = 'lmf-fork-rev', FORK_REV = 2;
 const HOUR = 3_600_000, DAY = 24 * HOUR;
 
 /** Toxic Flows: how one-sided the market orders are, a VPIN-style order-flow toxicity read from the recorded taker buys and sells. */
@@ -39,6 +43,18 @@ line(threshold, title="Threshold", color=rgba(16,15,15,0.55), lineStyle=2, lineW
 if (renderer.last && !na(toxicity)) mark({ value: toxicity, text: "Toxicity " + Math.round(toxicity), color: toxicity >= threshold ? toxicColor : calmColor }, title="Now", shape=label, position=at)
 `;
 
+/** The heatmap's settings on this desk: switched off (the book stays in its own folded Order Book tab), its colours as upstream's. */
+export const FORK_HEAT = { on: false, style: 'size', auto: true, contrast: 50, smooth: 'auto' } as const;
+/**
+ * The TPO on this desk: one Market Profile a week (Monday to Sunday in the Volume profile's zone), a letter or block per hour bracket (168 a
+ * week), folded into a profile at the week's start, in the page's ink (pale for a thin row to dark for a full one), with its TPO point of
+ * control, the 70 % value area (VAH and VAL), the initial balance (the first hour brackets' range), the open and close, tails and single
+ * prints, and the range numbers under it. A day's profile on four-hour candles is six candles wide and its half-hour letters too small to
+ * read; a week of hour brackets has room, and on a shorter timeframe the Period and Block length settings make it a day's.
+ */
+export const FORK_TPO = { on: true, period: 'week', block: 60, count: 0, source: 'chart', picks: [], look: 'auto', colour: 'ink', share: 70, unfold: false,
+  hollow: false, ib: true, calls: true, stats: true, lines: true, rows: {}, splits: {}, merges: {}, v: 2 } as const;
+
 /** A colour slot's own colour for the anchored VWAPs: the magenta of the reference desk. */
 const ANCHOR_COLOR = '#b0189f';
 
@@ -54,6 +70,9 @@ export function forkSettings(now: number): Record<string, unknown> {
     barCollapsed: true,
     show: { profile: false, traded: true, depth: false, oi: true, delta: false, ls: false, funding: false, candles: true, footprint: false, stats: false, lt: false,
       mirror: true, volume: true, bubbles: false, cvd: false, book: false, script: true },
+    // Revision 2 (2026-11-13): no order-book data on the map (the heatmap off; the book's own profile column was already off), and the TPO on.
+    heat: FORK_HEAT,
+    tpo: FORK_TPO,
     liqLevels: { on: true, column: false },
     // Candles first: no absorption squares or liquidation bubbles over them (each a switch in the Chart deck).
     absorption: { on: false, mode: 'auto', k: 10, sdMinutes: 30, fixedUsd: 250_000, volume: true },
@@ -89,16 +108,42 @@ export function forkScripts(): ScriptRecord[] {
 export const FORK_LAYOUT = { heights: { oi: 170, script: 84 }, order: ['heat', 'oi', 'script', 'bars', 'depth', 'delta', 'ls', 'funding', 'lt'],
   dock: { left: ['cvd'], right: ['book'], leftW: null, rightW: null, weights: {} } };
 
+/**
+ * Brings a browser seeded under an earlier revision to this one, once: revision 2 switches the heatmap off and the TPO on in the settings it
+ * kept, and changes nothing else it chose. A browser at this revision already (or one with nothing kept) is left alone. True when it changed.
+ */
+export function migrateForkDefaults(storage: Storage | undefined = globalThis.localStorage): boolean {
+  try {
+    if (!storage) return false;
+    const rev = Number(storage.getItem(FORK_REV_KEY) ?? 1), raw = storage.getItem(APP_KEY);
+    if (rev >= FORK_REV) return false;
+    if (raw !== null) {
+      const saved = JSON.parse(raw) as Record<string, unknown>;
+      if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
+        const heat = saved.heat && typeof saved.heat === 'object' ? saved.heat as Record<string, unknown> : {};
+        saved.heat = { ...FORK_HEAT, ...heat, on: false };
+        const tpo = saved.tpo && typeof saved.tpo === 'object' ? saved.tpo as Record<string, unknown> : {};
+        saved.tpo = { ...FORK_TPO, ...tpo, on: true, period: FORK_TPO.period, block: FORK_TPO.block, colour: FORK_TPO.colour, hollow: FORK_TPO.hollow };
+        storage.setItem(APP_KEY, JSON.stringify(saved));
+      }
+    }
+    storage.setItem(FORK_REV_KEY, String(FORK_REV));
+    return true;
+  } catch { return false; }
+}
+
 /** Writes this fork's first-visit settings into `storage` where it holds none yet; true when it did. */
 export function seedForkDefaults(storage: Storage | undefined = globalThis.localStorage, now = Date.now()): boolean {
   try {
-    if (!storage || storage.getItem(APP_KEY) !== null || storage.getItem(SEEDED_KEY) !== null) return false;
+    if (!storage) return false;
+    if (storage.getItem(APP_KEY) !== null || storage.getItem(SEEDED_KEY) !== null) { migrateForkDefaults(storage); return false; }
     storage.setItem(APP_KEY, JSON.stringify(forkSettings(now)));
     if (storage.getItem(SCRIPTS_KEY) === null) storage.setItem(SCRIPTS_KEY, JSON.stringify(forkScripts()));
     if (storage.getItem(LAYOUT_KEY) === null) storage.setItem(LAYOUT_KEY, JSON.stringify(FORK_LAYOUT));
     // The desk opens as it is; the tour is still one press away (Tour, in the bar).
     if (storage.getItem(TOUR_KEY) === null) storage.setItem(TOUR_KEY, JSON.stringify({ v: 1, seen: now, dismissed: now }));
     storage.setItem(SEEDED_KEY, String(now));
+    storage.setItem(FORK_REV_KEY, String(FORK_REV));
     return true;
   } catch { return false; }
 }

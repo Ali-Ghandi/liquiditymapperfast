@@ -2843,5 +2843,8 @@
  "Windows holding all {n} venues cover {k} of {span}": "包含全部 {n} 个交易所的窗口覆盖了 {span} 中的 {k}",
  "{n} included windows": "{n} 个计入的窗口",
  "Each included window is weighted by its overlap with the selection. Windows missing a venue are left out, so the set of venues stays the same.": "每个计入的窗口按它与所选范围的重叠程度加权。缺少某个交易所的窗口会被排除，因此交易所的集合保持不变。",
- "No column of this selection has a price centre: one side of the book is empty.": "此选择中没有任何一列有价格中心：订单簿的一侧为空。"
+ "No column of this selection has a price centre: one side of the book is empty.": "此选择中没有任何一列有价格中心：订单簿的一侧为空。",
+ "Show the heatmap": "显示热力图",
+ "The order book's resting liquidity drawn over the map. Off: the map shows the candles and its overlays alone.": "在图上绘制订单簿中挂着的流动性。关闭：图上只显示K线及其叠加层。",
+ "In ink": "墨色"
 }

@@ -1,5 +1,5 @@
 import type { View } from '../view.ts';
-import { PALETTES, type Palette } from '../theme.ts';
+import { PALETTES, mixHex, type Palette } from '../theme.ts';
 import type { LabelBoard } from '../labels.ts';
 import { t } from '../i18n.ts';
 import { price as fmtPrice, usd } from '../format.ts';
@@ -219,6 +219,9 @@ export function paintTpo(ctx: CanvasRenderingContext2D, o: TpoPaint): TpoGeometr
   const safeStops = dark ? SAFE : SAFE_LIGHT;
   // The marks are amber, but on the colour-blind themes, whose ramp ends in amber, they take the text's colour.
   const timeStops = safe ? safeStops : dark ? TIME_DARK : TIME_LIGHT, countStops = safe ? safeStops : dark ? COUNT_DARK : COUNT_LIGHT, amber = safe ? p.text : dark ? AMBER_DARK : AMBER_LIGHT;
+  // Fork: "In ink" counts the row's blocks as By row length does, from the page's paper to its ink (one hue, as print), so the profile reads
+  // on a quiet page without competing with the candles' and the VWAPs' colours.
+  const inkStops = [mixHex(p.bg, p.level, 0.28), mixHex(p.bg, p.text, 0.72)];
   const fold = ease(Math.max(0, Math.min(1, o.fold)));
   ctx.save(); ctx.beginPath(); ctx.rect(0, 0, pw, ph); ctx.clip();
   // Each profile is laid out first and drawn after (`jobs`, in order), so the compact ones' casing goes under all of them at once.
@@ -248,7 +251,7 @@ export function paintTpo(ctx: CanvasRenderingContext2D, o: TpoPaint): TpoGeometr
     const letters = s.look === 'letters' ? cellW >= 6 && rh >= 7 : s.look === 'auto' && rh >= 11 && cellW >= 7;
     const xAt = (r: number, i: number, k: number): number => x0 + i * cw + ((unfoldX.get(k) ?? 0) - x0 - i * cw) * fold;
     const backing = dark ? 'rgba(0,0,0,0.62)' : 'rgba(255,255,255,0.72)';
-    const byTime = s.colour !== 'count', colours = byTime ? ramp(timeStops, n, dark) : ramp(countStops, Math.max(1, maxCount), dark);
+    const byTime = s.colour === 'time', colours = byTime ? ramp(timeStops, n, dark) : ramp(s.colour === 'ink' ? inkStops : countStops, Math.max(1, maxCount), dark);
     const bars = compact ? compactBars({ prof, x0, cw, ucw, rh, fold, yTop, solid, maxCount, winPx, colours, byTime, fade, ph, unfoldX }, casing) : null;
     jobs.push(() => {
       if (bars) { bars.flush(ctx); ctx.globalAlpha = 1; }

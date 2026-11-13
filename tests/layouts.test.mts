@@ -61,7 +61,7 @@ test('a file can come from anywhere: every field is checked, anything else gets 
   assert.equal(junk.show.oi, false, 'a valid field of a partly broken object is kept');
   assert.ok(!('evil' in junk.show));
   assert.deepEqual([junk.ladderMode, junk.ladderCurves, junk.ladderShow, junk.grouping, junk.scope, junk.pullStack], ['compact', 5, 'both', 'auto', 'all', 0]);
-  assert.deepEqual(junk.heat, { style: 'size', auto: true, contrast: 100, smooth: 'auto' });
+  assert.deepEqual(junk.heat, { on: true, style: 'size', auto: true, contrast: 100, smooth: 'auto' });
   assert.equal(junk.lt.view, 'lines');
   assert.equal(junk.lt.halfLifeBp, defaults.lt.halfLifeBp);
   assert.deepEqual(junk.barStats, ['vol']);
@@ -194,8 +194,8 @@ test('a date a file holds that no clock can show becomes none; a date that can b
 });
 
 test('Undo puts back what an action changed and what still stands as it left it, and nothing the person did since', () => {
-  const before = settingsOf(state({ timeframe: '15m', ladderMode: 'compact', heat: { style: 'size', auto: true, contrast: 90, smooth: 'auto' }, show: { ...defaults.show, oi: false, footprint: false, cvd: true } }));
-  const after = settingsOf(state({ timeframe: '4h', ladderMode: 'single', heat: { style: 'size', auto: true, contrast: 50, smooth: 'auto' }, show: { ...defaults.show, oi: true, footprint: false, cvd: false } }));
+  const before = settingsOf(state({ timeframe: '15m', ladderMode: 'compact', heat: { on: true, style: 'size', auto: true, contrast: 90, smooth: 'auto' }, show: { ...defaults.show, oi: false, footprint: false, cvd: true } }));
+  const after = settingsOf(state({ timeframe: '4h', ladderMode: 'single', heat: { on: true, style: 'size', auto: true, contrast: 50, smooth: 'auto' }, show: { ...defaults.show, oi: true, footprint: false, cvd: false } }));
   // Straight away: everything the action changed goes back, including the settings a saved layout carries.
   const all = undoPatch(before, after, after);
   assert.equal(all.timeframe, '15m'); assert.equal(all.ladderMode, 'compact'); assert.equal(all.heat!.contrast, 90);

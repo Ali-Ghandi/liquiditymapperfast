@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FORK_LAYOUT, TOXIC_SOURCE, forkScripts, forkSettings, seedForkDefaults } from '../src/app/fork-defaults.ts';
+import { FORK_LAYOUT, FORK_REV, FORK_REV_KEY, TOXIC_SOURCE, forkScripts, forkSettings, migrateForkDefaults, seedForkDefaults } from '../src/app/fork-defaults.ts';
+import { readTpo } from '../src/app/tpo/settings.ts';
 import { readSettings, DEFAULTS_REV } from '../src/app/store.ts';
 import { SCRIPTS_KEY, readScripts } from '../src/app/script/records.ts';
 import { runScript } from '../src/app/script/lang/engine.ts';
@@ -43,6 +44,9 @@ test('the seeded settings survive the page\'s own reader: Newsprint desk, 4h, OI
   assert.deepEqual(s.traded.anchors.BTC?.rule, { period: 'year', point: 'start' });
   assert.ok(s.traded.placements.instances.some(p => p.placement === 'left' && p.enabled));
   assert.equal(s.liqLevels.on, true); assert.equal(s.absorption.on, false);
+  assert.equal(s.heat.on, false, 'no order-book heatmap on the map'); assert.equal(s.show.profile, false, 'nor the book\'s profile column');
+  assert.equal(s.tpo.on, true); assert.equal(s.tpo.period, 'week'); assert.equal(s.tpo.block, 60); assert.equal(s.tpo.colour, 'ink'); assert.equal(s.tpo.share, 70);
+  assert.ok(s.tpo.ib && s.tpo.calls && s.tpo.stats);
   assert.deepEqual(FORK_LAYOUT.order.slice(0, 3), ['heat', 'oi', 'script']);
 });
 
@@ -58,4 +62,30 @@ test('the two seeded scripts read back as they are written, and Toxic Flows runs
   const toxicity = r.plots.find(p => p.title === 'Toxicity')!, values = [...toxicity.fields.value!].filter(Number.isFinite);
   assert.ok(values.length > 0 && values.every(v => v >= 0 && v <= 100));
   assert.ok(r.plots.some(p => p.title === 'Threshold'));
+});
+
+test('a browser seeded under revision 1 loses the heatmap and gains the TPO once, keeping everything else it chose', () => {
+  const s = memory();
+  // Revision 1 wrote no heat or TPO keys and no revision; this person has since picked another theme and timeframe.
+  const v1 = forkSettings(NOW); delete v1.heat; delete v1.tpo;
+  s.setItem('hlm-app-v2', JSON.stringify({ ...v1, theme: 'parchment', timeframe: '1h' })); s.setItem('lmf-fork-seeded-v1', String(NOW));
+  assert.equal(seedForkDefaults(s, NOW + 1), false, 'not seeded again');
+  assert.equal(s.getItem(FORK_REV_KEY), String(FORK_REV));
+  const after = readSettings(JSON.parse(s.getItem('hlm-app-v2')!));
+  assert.equal(after.heat.on, false); assert.equal(after.tpo.on, true); assert.equal(after.tpo.period, 'week');
+  assert.equal(after.timeframe, '1h'); assert.equal((JSON.parse(s.getItem('hlm-app-v2')!) as { theme: string }).theme, 'parchment');
+  // Once migrated, a person who switches the heatmap back on keeps it.
+  s.setItem('hlm-app-v2', JSON.stringify({ ...JSON.parse(s.getItem('hlm-app-v2')!), heat: { on: true } }));
+  assert.equal(migrateForkDefaults(s), false);
+  assert.equal(readSettings(JSON.parse(s.getItem('hlm-app-v2')!)).heat.on, true);
+  const empty = memory();
+  assert.equal(migrateForkDefaults(empty), true, 'nothing kept: only the revision is noted');
+  assert.equal(empty.getItem('hlm-app-v2'), null);
+});
+
+test('the heatmap is on unless switched off, and the TPO reads its new In ink colour', () => {
+  assert.equal(readSettings({}).heat.on, true, 'upstream\'s default stands where nothing is kept');
+  assert.equal(readSettings({ heat: { on: 'no' } as never }).heat.on, true);
+  assert.equal(readTpo({ colour: 'ink' }).colour, 'ink');
+  assert.equal(readTpo({ colour: 'neon' }).colour, 'time');
 });

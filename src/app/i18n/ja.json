@@ -2843,5 +2843,8 @@
  "Windows holding all {n} venues cover {k} of {span}": "{n} 取引所すべてを含むウィンドウがカバーする時間：{span} 中 {k}",
  "{n} included windows": "含まれるウィンドウ {n} 件",
  "Each included window is weighted by its overlap with the selection. Windows missing a venue are left out, so the set of venues stays the same.": "含まれる各ウィンドウは、選択との重なりで重み付けされます。取引所が欠けているウィンドウは除外するため、取引所の構成は変わりません。",
- "No column of this selection has a price centre: one side of the book is empty.": "この選択には中心価格のある列がありません。板の片側が空です。"
+ "No column of this selection has a price centre: one side of the book is empty.": "この選択には中心価格のある列がありません。板の片側が空です。",
+ "Show the heatmap": "ヒートマップを表示",
+ "The order book's resting liquidity drawn over the map. Off: the map shows the candles and its overlays alone.": "板に置かれた流動性をマップ上に描きます。オフ：マップにはローソク足と重ね表示だけが出ます。",
+ "In ink": "インク"
 }

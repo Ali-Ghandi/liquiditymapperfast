@@ -1161,7 +1161,8 @@ export class HeatPane {
     if (marked || (column && state.absorption.mode === 'auto')) { const { ids, thresholds } = this.#absorptionContext(state); this.hub.ensureAbsorption(ids, ids.map(id => thresholds.get(id) ?? null), this.view, state.absorption.sdMinutes, !marked); }
     this.#stepFootprint(state);
     // Under a dominant footprint the heatmap is gone altogether, so there is nothing to draw.
-    if (state.layer === 'liquidity' && this.#lodFrame.heatmapOpacity > 0.003) this.gl.draw(this.view, this.#style()); else this.gl.clear();
+    // Fork: the heatmap can be switched off (`heat.on`), leaving the candles on a plain page.
+    if (state.heat.on && state.layer === 'liquidity' && this.#lodFrame.heatmapOpacity > 0.003) this.gl.draw(this.view, this.#style()); else this.gl.clear();
     this.#drawDust();
     this.#paintOverlay(state);
     // After the overlay: the strip's bars and the bubbles it judges the pointer against are this frame's.
@@ -2082,6 +2083,8 @@ export class HeatPane {
   #paintHistoryStart(ctx: CanvasRenderingContext2D, pw: number, ph: number, p: Palette): void {
     const since = this.hub.depthSince(), v = this.view;
     this.#historyNote = null;
+    // Fork: with the heatmap off there is no depth on the map to date.
+    if (!this.store.state.heat.on) return;
     if (!(since > v.t0 && since < v.t1)) return;
     const x = Math.round(v.xOf(since, pw)) + 0.5, text = t('depth recorded from {time}', { time: clock(since) });
     ctx.save();

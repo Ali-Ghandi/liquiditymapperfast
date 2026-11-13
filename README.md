@@ -3,6 +3,8 @@
 > value-area lines, two anchored VWAPs and the 7/30/365-day rolling VWAPs, Hyperliquid liquidation levels, an Open Interest pane over every
 > perpetual and a Scripts pane with the spot and perpetual CVD and a new **Toxic Flows** script), set in `src/app/fork-defaults.ts`; and on 4h
 > candles and longer the chart frames about a month of candles instead of the recorded minutes. A browser that already kept settings keeps them.
+> Revision 2: no order-book heatmap on the map (a new "Show the heatmap" switch in the Heatmap key's panel, off here) and the TPO on: a week's
+> Market Profile of hour brackets in the page's ink (a new "In ink" colour). Browsers that got revision 1 are migrated once.
 > Live: https://ali-ghandi.github.io/liquiditymapperfast/
 
 # LiquidityMapperFast

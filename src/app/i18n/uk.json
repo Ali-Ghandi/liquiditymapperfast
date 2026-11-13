@@ -3091,5 +3091,8 @@
   "other": "{n} врахованого вікна"
  },
  "Each included window is weighted by its overlap with the selection. Windows missing a venue are left out, so the set of venues stays the same.": "Кожне враховане вікно зважується за його перетином із виділенням. Вікна, у яких бракує якоїсь біржі, не враховуються, щоб набір бірж лишався незмінним.",
- "No column of this selection has a price centre: one side of the book is empty.": "Жодна колонка цього виділення не має цінового центру: одна сторона стакана порожня."
+ "No column of this selection has a price centre: one side of the book is empty.": "Жодна колонка цього виділення не має цінового центру: одна сторона стакана порожня.",
+ "Show the heatmap": "Показувати теплову карту",
+ "The order book's resting liquidity drawn over the map. Off: the map shows the candles and its overlays alone.": "Ліквідність, що стоїть у стакані, поверх карти. Вимк.: на карті лише свічки та накладення.",
+ "In ink": "Чорнилом"
 }

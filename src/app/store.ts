@@ -194,7 +194,7 @@ export interface AppState {
   heatmapSource: string;
   disabledVenues: string[];
   /** Heatmap colouring: ramp style, one contrast slider (-100 to 100, 50 = percentile baseline; see heatmap/window.ts) and whether the baseline follows the data. */
-  heat: { style: HeatStyleId; auto: boolean; contrast: number; smooth: 'auto' | 'off' };
+  heat: { /** Whether the order-book heatmap is drawn on the map at all (fork, 2026-11-13: a candles-only map). */ on: boolean; style: HeatStyleId; auto: boolean; contrast: number; smooth: 'auto' | 'off' };
   grouping: 'auto' | number;
   ladderMode: LadderMode;
   ladderShow: LadderShow;
@@ -279,7 +279,7 @@ export type Settings = Pick<AppState, (typeof LAYOUT_KEYS)[number]>;
 
 /** The timeframes (hub.ts TIMEFRAMES; a test keeps the two the same). */
 export const TIMEFRAME_IDS: readonly string[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
-const HEAT_DEFAULTS: AppState['heat'] = { style: 'size', auto: true, contrast: 50, smooth: 'auto' };
+const HEAT_DEFAULTS: AppState['heat'] = { on: true, style: 'size', auto: true, contrast: 50, smooth: 'auto' };
 
 /** A flat settings object from storage or a file: each field the defaults have, kept when it has the default's type (a number must be finite). */
 export function sameShape<T extends object>(defaults: T, raw: unknown): T {

@@ -3045,5 +3045,8 @@
   "other": "{n} janelas incluídas"
  },
  "Each included window is weighted by its overlap with the selection. Windows missing a venue are left out, so the set of venues stays the same.": "Cada janela incluída é ponderada pela sua sobreposição com a seleção. As janelas sem alguma exchange ficam de fora, para que o conjunto de exchanges continue o mesmo.",
- "No column of this selection has a price centre: one side of the book is empty.": "Nenhuma coluna desta seleção tem centro de preço: um lado do livro está vazio."
+ "No column of this selection has a price centre: one side of the book is empty.": "Nenhuma coluna desta seleção tem centro de preço: um lado do livro está vazio.",
+ "Show the heatmap": "Mostrar o mapa de calor",
+ "The order book's resting liquidity drawn over the map. Off: the map shows the candles and its overlays alone.": "A liquidez em repouso do livro de ofertas desenhada sobre o mapa. Desligado: o mapa mostra apenas as velas e as suas camadas.",
+ "In ink": "A tinta"
 }

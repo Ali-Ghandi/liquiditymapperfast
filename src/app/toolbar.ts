@@ -1190,6 +1190,7 @@ export class Toolbar {
     const h = this.store.state.heat, choices: [string, string][] = [['auto', t('Auto')], ['off', t('Off')]];
     tools.append(helpButton('heatmap'));
     body.append(
+      switchRow(t('Show the heatmap'), t('The order book\'s resting liquidity drawn over the map. Off: the map shows the candles and its overlays alone.'), h.on, on => set({ on })),
       selectRow(t('Colour range'), COLOUR_RANGE_TIP, choices, h.auto ? 'auto' : 'off', v => set({ auto: v === 'auto' })),
       selectRow(t('Smoothing'), SMOOTHING_TIP, choices, h.smooth, v => set({ smooth: v === 'off' ? 'off' : 'auto' })),
     );

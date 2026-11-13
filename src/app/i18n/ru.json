@@ -3086,5 +3086,8 @@
   "other": "{n} учтённого окна"
  },
  "Each included window is weighted by its overlap with the selection. Windows missing a venue are left out, so the set of venues stays the same.": "Каждое учтённое окно взвешивается по его пересечению с выделением. Окна, в которых не хватает какой-либо биржи, не учитываются, чтобы набор бирж оставался прежним.",
- "No column of this selection has a price centre: one side of the book is empty.": "Ни у одной колонки этого выделения нет ценового центра: одна сторона стакана пуста."
+ "No column of this selection has a price centre: one side of the book is empty.": "Ни у одной колонки этого выделения нет ценового центра: одна сторона стакана пуста.",
+ "Show the heatmap": "Показывать тепловую карту",
+ "The order book's resting liquidity drawn over the map. Off: the map shows the candles and its overlays alone.": "Ликвидность, стоящая в стакане, поверх карты. Выкл.: на карте только свечи и наложения.",
+ "In ink": "Чернилами"
 }
