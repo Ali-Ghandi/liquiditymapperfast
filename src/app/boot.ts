@@ -2,6 +2,8 @@
 import { loadLanguage } from './i18n-load.ts';
 import { lazy } from './lazy.ts';
 
+// This fork opens on its own desk the first time (fork-defaults.ts); a browser that kept settings keeps them. Before the page reads them.
+(await import('./fork-defaults.ts')).seedForkDefaults();
 await loadLanguage();
 // The rest of the page is a file of its own: a page opened before the site was rebuilt asks for one that is gone, and reloads once (see lazy.ts).
 await lazy(() => import('./main.ts'), { reload: true });

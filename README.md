@@ -1,3 +1,10 @@
+> **This is a fork** of [liquiditymapperfast/liquiditymapperfast.github.io](https://github.com/liquiditymapperfast/liquiditymapperfast.github.io) by Karl, MIT licensed (see `LICENSE`).
+> The only changes: a first visit opens on a "Newsprint" desk (cream theme, Binance BTCUSDT 4h, the year's volume profile from candles with its
+> value-area lines, two anchored VWAPs and the 7/30/365-day rolling VWAPs, Hyperliquid liquidation levels, an Open Interest pane over every
+> perpetual and a Scripts pane with the spot and perpetual CVD and a new **Toxic Flows** script), set in `src/app/fork-defaults.ts`; and on 4h
+> candles and longer the chart frames about a month of candles instead of the recorded minutes. A browser that already kept settings keeps them.
+> Live: https://ali-ghandi.github.io/liquiditymapperfast/
+
 # LiquidityMapperFast
 
 **Open it: https://liquiditymapperfast.github.io/** — free, no sign-up, MIT licence. The **Tour** button inside shows you around in a minute, and the **Guide** explains everything.

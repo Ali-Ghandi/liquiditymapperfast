@@ -904,11 +904,15 @@ export class HeatPane {
     // that has either frames it (`#render`), rather than a price axis around 1 that the price recentres but never widens.
     if (!prices) return;
     const now = pageNow();
-    let span = tf * Math.max(40, Math.min(110, recent.length || 80));
+    // Fork: on four-hour candles and longer the desk reads the candles, so it frames about a month of them with room ahead for the resting
+    // liquidity, rather than the few recorded minutes (the reference desk, 2026-11-13).
+    const candleDesk = tf >= 4 * 3_600_000;
+    let span = candleDesk ? tf * 170 : tf * Math.max(40, Math.min(110, recent.length || 80));
     // With little recorded depth, frame the recorded window so the heatmap is visible rather than a sliver.
     const since = this.hub.recordedSince;
-    if (since > 0 && now - since < span * 0.7) span = Math.max(75 * 60_000, (now - since) * 1.35);
+    if (!candleDesk && since > 0 && now - since < span * 0.7) span = Math.max(75 * 60_000, (now - since) * 1.35);
     this.#liveMargin = span * 0.08;
+    if (candleDesk) this.#liveMargin = span * 0.18;
     this.view.set({ t0: now + this.#liveMargin - span, t1: now + this.#liveMargin, p0: prices.p0, p1: prices.p1 });
     this.#priceHeld = false; this.#panDx = 0; this.#panDy = 0; this.#settlePending = false; this.#followPaused = false; this.store.set({ followLive: true });
     this.#rasteredKey = ''; this.onView(); this.invalidate();
