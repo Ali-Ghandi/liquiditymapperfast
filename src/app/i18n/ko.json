@@ -2846,5 +2846,10 @@
  "No column of this selection has a price centre: one side of the book is empty.": "이 선택에는 중심 가격이 있는 열이 없습니다. 호가창의 한쪽이 비어 있습니다.",
  "Show the heatmap": "히트맵 표시",
  "The order book's resting liquidity drawn over the map. Off: the map shows the candles and its overlays alone.": "호가창에 쌓인 유동성을 지도 위에 그립니다. 끄면 지도에 캔들과 오버레이만 표시됩니다.",
- "In ink": "잉크"
+ "In ink": "잉크",
+ "Naked points of control": "네이키드 POC",
+ "Each earlier window's TPO point of control drawn on to the right (nPOC) until a later window trades through it.": "이전 각 구간의 TPO POC를 이후 구간이 그 가격을 거래할 때까지 오른쪽으로 연장해 그립니다(nPOC).",
+ "Volume profile in each window": "각 구간의 거래량 프로파일",
+ "The traded-volume profile of each of the same windows (day, week or sessions), beside its TPO. The Volume profile must be on.": "같은 각 구간(일, 주, 세션)의 거래량 프로파일을 TPO 옆에 그립니다. 거래량 프로파일이 켜져 있어야 합니다.",
+ "nPOC": "nPOC"
 }

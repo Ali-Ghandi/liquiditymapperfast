@@ -51,6 +51,8 @@ export interface TpoSettings {
   calls: boolean;
   /** The few numbers under each profile (range, initial balance, TPOs above and below the point of control). */
   stats: boolean;
+  /** Naked points of control (fork): each earlier window's TPO point of control drawn on to the right while no later window has traded through it. */
+  naked: boolean;
   /** While the TPO shows, the Volume profile's lines of the same windows are drawn at the TPO's levels (one set of lines, never two). */
   lines: boolean;
   /** A row's price per coin, where one was chosen (none: Auto). */
@@ -68,7 +70,7 @@ export interface TpoSettings {
 
 export const TPO_DEFAULTS: Readonly<TpoSettings> = {
   on: false, period: 'day', block: 0, count: 0, source: 'chart', picks: [], look: 'auto', colour: 'time', share: 70, unfold: false, hollow: true,
-  ib: true, calls: true, stats: true, lines: true, rows: {}, splits: {}, merges: {}, v: 2,
+  ib: true, calls: true, stats: true, naked: false, lines: true, rows: {}, splits: {}, merges: {}, v: 2,
 };
 
 export const MAX_TPO_COUNT = 20;
@@ -120,7 +122,7 @@ export function readTpo(saved: unknown): TpoSettings {
     colour: s.colour === 'count' || s.colour === 'ink' ? s.colour : 'time',
     share: typeof s.share === 'number' && Number.isFinite(s.share) && s.share >= 50 && s.share <= 90 ? Math.round(s.share) : d.share,
     unfold: flag(s.unfold, d.unfold), hollow: flag(s.hollow, d.hollow), ib: flag(s.ib, d.ib), calls: flag(s.calls, d.calls),
-    stats: flag(s.stats, d.stats), lines: flag(s.lines, d.lines), rows, splits: edits(s.splits, splitEntry), merges: edits(s.merges, e => e.length > 0),
+    stats: flag(s.stats, d.stats), naked: flag(s.naked, d.naked), lines: flag(s.lines, d.lines), rows, splits: edits(s.splits, splitEntry), merges: edits(s.merges, e => e.length > 0),
   };
 }
 

@@ -3094,5 +3094,10 @@
  "No column of this selection has a price centre: one side of the book is empty.": "Жодна колонка цього виділення не має цінового центру: одна сторона стакана порожня.",
  "Show the heatmap": "Показувати теплову карту",
  "The order book's resting liquidity drawn over the map. Off: the map shows the candles and its overlays alone.": "Ліквідність, що стоїть у стакані, поверх карти. Вимк.: на карті лише свічки та накладення.",
- "In ink": "Чорнилом"
+ "In ink": "Чорнилом",
+ "Naked points of control": "Неперекриті POC",
+ "Each earlier window's TPO point of control drawn on to the right (nPOC) until a later window trades through it.": "POC TPO кожного попереднього вікна продовжується праворуч (nPOC), доки пізніше вікно не проторгує через нього.",
+ "Volume profile in each window": "Профіль обсягу в кожному вікні",
+ "The traded-volume profile of each of the same windows (day, week or sessions), beside its TPO. The Volume profile must be on.": "Профіль проторгованого обсягу кожного з тих самих вікон (день, тиждень або сесії) поруч із його TPO. Профіль обсягу має бути увімкнений.",
+ "nPOC": "nPOC"
 }

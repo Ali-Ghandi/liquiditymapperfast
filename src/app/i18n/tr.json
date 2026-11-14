@@ -2991,5 +2991,10 @@
  "No column of this selection has a price centre: one side of the book is empty.": "Bu seçimdeki hiçbir sütunun fiyat merkezi yok: emir defterinin bir tarafı boş.",
  "Show the heatmap": "Isı haritasını göster",
  "The order book's resting liquidity drawn over the map. Off: the map shows the candles and its overlays alone.": "Emir defterinde bekleyen likidite haritanın üzerine çizilir. Kapalı: harita yalnızca mumları ve katmanlarını gösterir.",
- "In ink": "Mürekkeple"
+ "In ink": "Mürekkeple",
+ "Naked points of control": "Çıplak kontrol noktaları",
+ "Each earlier window's TPO point of control drawn on to the right (nPOC) until a later window trades through it.": "Önceki her pencerenin TPO kontrol noktası, sonraki bir pencere içinden işlem görene kadar sağa uzatılır (nPOC).",
+ "Volume profile in each window": "Her pencerede hacim profili",
+ "The traded-volume profile of each of the same windows (day, week or sessions), beside its TPO. The Volume profile must be on.": "Aynı pencerelerin (gün, hafta veya seanslar) her birinin işlem hacmi profili, TPO'sunun yanında. Hacim profili açık olmalıdır.",
+ "nPOC": "nPOC"
 }

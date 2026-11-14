@@ -4,7 +4,7 @@ import type { LabelBoard } from '../labels.ts';
 import { t } from '../i18n.ts';
 import { price as fmtPrice, usd } from '../format.ts';
 import { ageAlpha, LABEL_FLOOR } from '../traded/carry.ts';
-import { letterOf, type TpoProfile } from './model.ts';
+import { letterOf, nakedPocs, type TpoProfile } from './model.ts';
 import type { TpoSettings } from './settings.ts';
 
 /**
@@ -367,9 +367,32 @@ export function paintTpo(ctx: CanvasRenderingContext2D, o: TpoPaint): TpoGeometr
   fillRects(ctx, p.bg, CASING_ALPHA, casing);
   ctx.globalAlpha = 1;
   for (const job of jobs) job();
+  if (s.naked) paintNaked(ctx, o);
   ctx.restore();
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   return out;
+}
+
+/**
+ * Naked points of control (fork): from the end of each window whose TPO point of control no later window has traded through, a thin dashed
+ * line in the profile's colour to the right edge, named "nPOC" with its price at the right, where the labels leave room.
+ */
+function paintNaked(ctx: CanvasRenderingContext2D, o: TpoPaint): void {
+  const { view: v, pw, ph, p } = o;
+  for (const n of nakedPocs(o.profiles)) {
+    const y = Math.round(v.yOf(n.price, ph)) + 0.5, from = Math.max(0, v.xOf(n.to, pw));
+    if (y < 0 || y > ph || from >= pw - 10) continue;
+    ctx.globalAlpha = 0.8; ctx.strokeStyle = p.poc; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(from, y); ctx.lineTo(pw, y); ctx.stroke(); ctx.setLineDash([]);
+    const step = o.profiles.find(q => q.key === n.key)?.R ?? 1, text = `${t('nPOC')} ${fmtPrice(n.price, step)}`;
+    ctx.font = '600 10px ui-sans-serif, system-ui, sans-serif';
+    const tw = ctx.measureText(text).width + 8, bx = pw - tw - 2;
+    if (bx > from && o.labels.claim({ x0: bx, x1: bx + tw, y0: y - 7, y1: y + 7 })) {
+      ctx.globalAlpha = 0.85; ctx.fillStyle = p.panel; ctx.fillRect(bx, y - 7, tw, 14);
+      ctx.globalAlpha = 1; ctx.fillStyle = p.poc; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(text, bx + 4, y);
+    }
+  }
+  ctx.globalAlpha = 1;
 }
 
 /** The block under the pointer, on the pointer's own layer: its cells framed wherever they stand, and its time lit across the map. */

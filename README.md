@@ -5,6 +5,7 @@
 > candles and longer the chart frames about a month of candles instead of the recorded minutes. A browser that already kept settings keeps them.
 > Revision 2: no order-book heatmap on the map (a new "Show the heatmap" switch in the Heatmap key's panel, off here) and the TPO on: a week's
 > Market Profile of hour brackets in the page's ink (a new "In ink" colour). Browsers that got revision 1 are migrated once.
+> Extras, each off until switched on in the TPO panel: naked points of control (nPOC) and the volume profile of each TPO window.
 > Live: https://ali-ghandi.github.io/liquiditymapperfast/
 
 # LiquidityMapperFast

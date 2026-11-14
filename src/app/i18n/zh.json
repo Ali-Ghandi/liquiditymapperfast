@@ -2846,5 +2846,10 @@
  "No column of this selection has a price centre: one side of the book is empty.": "此选择中没有任何一列有价格中心：订单簿的一侧为空。",
  "Show the heatmap": "显示热力图",
  "The order book's resting liquidity drawn over the map. Off: the map shows the candles and its overlays alone.": "在图上绘制订单簿中挂着的流动性。关闭：图上只显示K线及其叠加层。",
- "In ink": "墨色"
+ "In ink": "墨色",
+ "Naked points of control": "裸POC",
+ "Each earlier window's TPO point of control drawn on to the right (nPOC) until a later window trades through it.": "将每个较早窗口的TPO控制点向右延伸（nPOC），直到后来的窗口在该价位成交。",
+ "Volume profile in each window": "每个窗口的成交量分布",
+ "The traded-volume profile of each of the same windows (day, week or sessions), beside its TPO. The Volume profile must be on.": "在每个相同窗口（日、周或交易时段）的TPO旁绘制其成交量分布。需开启成交量分布。",
+ "nPOC": "nPOC"
 }

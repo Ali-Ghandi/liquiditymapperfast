@@ -410,3 +410,23 @@ export function editedWindows(windows: readonly { key: string; from: number; to:
   }
   return out.sort((x, y) => x.from - y.from || x.to - y.to);
 }
+
+/** A naked point of control: a window's TPO point of control (its row's middle price) that no later window has traded through. */
+export interface NakedPoc { key: string; price: number; from: number; to: number }
+/**
+ * The naked points of control among `profiles` (fork, 2026-11-14): each closed window's point of control, kept while every window after it
+ * stayed above or below it (the windows follow one another, so their ranges are the trading since). The window under way has none of its
+ * own; it is what tests the others. Oldest first.
+ */
+export function nakedPocs(profiles: readonly Pick<TpoProfile, 'key' | 'from' | 'to' | 'poc' | 'R' | 'high' | 'low' | 'developing'>[]): NakedPoc[] {
+  const list = [...profiles].sort((a, b) => a.from - b.from), out: NakedPoc[] = [];
+  for (let i = 0; i < list.length; i++) {
+    const p = list[i]!;
+    if (p.developing || !(p.R > 0)) continue;
+    const price = (p.poc + 0.5) * p.R;
+    let touched = false;
+    for (let j = i + 1; j < list.length && !touched; j++) { const q = list[j]!; touched = q.low <= price && price <= q.high; }
+    if (!touched && i < list.length - 1) out.push({ key: p.key, price, from: p.from, to: p.to });
+  }
+  return out;
+}

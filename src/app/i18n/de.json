@@ -2997,5 +2997,10 @@
  "No column of this selection has a price centre: one side of the book is empty.": "Keine Spalte dieser Auswahl hat ein Preiszentrum: Eine Seite des Orderbuchs ist leer.",
  "Show the heatmap": "Heatmap anzeigen",
  "The order book's resting liquidity drawn over the map. Off: the map shows the candles and its overlays alone.": "Die ruhende Liquidität des Orderbuchs über der Karte. Aus: Die Karte zeigt nur die Kerzen und ihre Überlagerungen.",
- "In ink": "In Tinte"
+ "In ink": "In Tinte",
+ "Naked points of control": "Nackte Kontrollpunkte",
+ "Each earlier window's TPO point of control drawn on to the right (nPOC) until a later window trades through it.": "Der TPO-Kontrollpunkt jedes früheren Fensters wird nach rechts weitergezogen (nPOC), bis ein späteres Fenster durch ihn handelt.",
+ "Volume profile in each window": "Volumenprofil in jedem Fenster",
+ "The traded-volume profile of each of the same windows (day, week or sessions), beside its TPO. The Volume profile must be on.": "Das gehandelte Volumenprofil jedes dieser Fenster (Tag, Woche oder Sitzungen) neben seinem TPO. Das Volumenprofil muss eingeschaltet sein.",
+ "nPOC": "nPOC"
 }
