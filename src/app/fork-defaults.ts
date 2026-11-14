@@ -1,5 +1,6 @@
 import { CVD_ID, CVD_SOURCE } from './script/starter.ts';
-import { SCRIPTS_KEY, SCRIPT_API, ROW_MIN, type ScriptRecord } from './script/records.ts';
+import { SCRIPTS_KEY, SCRIPT_API, ROW_MIN, MAX_SCRIPTS, type ScriptRecord } from './script/records.ts';
+import { traderScriptRecords } from './fork-scripts.ts';
 import { DEFAULTS_REV } from './store.ts';
 
 /**
@@ -16,7 +17,7 @@ import { DEFAULTS_REV } from './store.ts';
 
 const APP_KEY = 'hlm-app-v2', LAYOUT_KEY = 'hlm-layout-v3', TOUR_KEY = 'hlm-tour-v1', SEEDED_KEY = 'lmf-fork-seeded-v1';
 /** The fork's revision of its defaults a browser has been brought to (`migrateForkDefaults`); none: revision 1, the first desk. */
-export const FORK_REV_KEY = 'lmf-fork-rev', FORK_REV = 2;
+export const FORK_REV_KEY = 'lmf-fork-rev', FORK_REV = 3;
 const HOUR = 3_600_000, DAY = 24 * HOUR;
 
 /** Toxic Flows: how one-sided the market orders are, a VPIN-style order-flow toxicity read from the recorded taker buys and sells. */
@@ -109,15 +110,16 @@ export const FORK_LAYOUT = { heights: { oi: 170, script: 84 }, order: ['heat', '
   dock: { left: ['cvd'], right: ['book'], leftW: null, rightW: null, weights: {} } };
 
 /**
- * Brings a browser seeded under an earlier revision to this one, once: revision 2 switches the heatmap off and the TPO on in the settings it
- * kept, and changes nothing else it chose. A browser at this revision already (or one with nothing kept) is left alone. True when it changed.
+ * Brings a browser seeded under an earlier revision to this one, once, changing nothing else it chose. Revision 2 switches the heatmap off and
+ * the TPO on in the settings it kept; revision 3 adds the Scott and Maru scripts to its Scripts list, every one switched off (none it already
+ * has, and none past the list's limit), so the desk looks as it did. A browser at this revision already is left alone. True when it changed.
  */
 export function migrateForkDefaults(storage: Storage | undefined = globalThis.localStorage): boolean {
   try {
     if (!storage) return false;
     const rev = Number(storage.getItem(FORK_REV_KEY) ?? 1), raw = storage.getItem(APP_KEY);
     if (rev >= FORK_REV) return false;
-    if (raw !== null) {
+    if (rev < 2 && raw !== null) {
       const saved = JSON.parse(raw) as Record<string, unknown>;
       if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
         const heat = saved.heat && typeof saved.heat === 'object' ? saved.heat as Record<string, unknown> : {};
@@ -127,9 +129,21 @@ export function migrateForkDefaults(storage: Storage | undefined = globalThis.lo
         storage.setItem(APP_KEY, JSON.stringify(saved));
       }
     }
+    if (rev < 3) addTraderScripts(storage);
     storage.setItem(FORK_REV_KEY, String(FORK_REV));
     return true;
   } catch { return false; }
+}
+
+/** Adds the Scott and Maru scripts, switched off, to the Scripts list `storage` keeps (when it keeps one); the ones it has are left alone. */
+export function addTraderScripts(storage: Storage): void {
+  const raw = storage.getItem(SCRIPTS_KEY);
+  if (raw === null) return;
+  const list = JSON.parse(raw) as unknown;
+  if (!Array.isArray(list)) return;
+  const have = new Set(list.map(r => (r && typeof r === 'object' ? (r as { id?: unknown }).id : undefined)));
+  for (const r of traderScriptRecords()) if (!have.has(r.id) && list.length < MAX_SCRIPTS) list.push(r);
+  storage.setItem(SCRIPTS_KEY, JSON.stringify(list));
 }
 
 /** Writes this fork's first-visit settings into `storage` where it holds none yet; true when it did. */
@@ -138,7 +152,7 @@ export function seedForkDefaults(storage: Storage | undefined = globalThis.local
     if (!storage) return false;
     if (storage.getItem(APP_KEY) !== null || storage.getItem(SEEDED_KEY) !== null) { migrateForkDefaults(storage); return false; }
     storage.setItem(APP_KEY, JSON.stringify(forkSettings(now)));
-    if (storage.getItem(SCRIPTS_KEY) === null) storage.setItem(SCRIPTS_KEY, JSON.stringify(forkScripts()));
+    if (storage.getItem(SCRIPTS_KEY) === null) storage.setItem(SCRIPTS_KEY, JSON.stringify([...forkScripts(), ...traderScriptRecords()]));
     if (storage.getItem(LAYOUT_KEY) === null) storage.setItem(LAYOUT_KEY, JSON.stringify(FORK_LAYOUT));
     // The desk opens as it is; the tour is still one press away (Tour, in the bar).
     if (storage.getItem(TOUR_KEY) === null) storage.setItem(TOUR_KEY, JSON.stringify({ v: 1, seen: now, dismissed: now }));

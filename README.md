@@ -6,6 +6,10 @@
 > Revision 2: no order-book heatmap on the map (a new "Show the heatmap" switch in the Heatmap key's panel, off here) and the TPO on: a week's
 > Market Profile of hour brackets in the page's ink (a new "In ink" colour). Browsers that got revision 1 are migrated once.
 > Extras, each off until switched on in the TPO panel: naked points of control (nPOC) and the volume profile of each TPO window.
+> Revision 3: eleven scripts after two traders' public notes, in the Scripts list as two groups, every one **off** until switched on in the
+> Scripts panel (`src/app/fork-scripts.ts`): **Scott ·** Trend strength, OI at highs and lows, Wide-range candle after a run, Volatility sizing;
+> **Maru ·** Liquidation clock, Log-volume trend, Volume-spike levels, Coiled range, Open-interest trend, Moving-average cross without chop,
+> Weekend candles. They describe the chart; none is a forecast. Browsers on an earlier revision get them added, switched off, once.
 > Live: https://ali-ghandi.github.io/liquiditymapperfast/
 
 # LiquidityMapperFast

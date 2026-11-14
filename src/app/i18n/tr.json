@@ -2996,5 +2996,16 @@
  "Each earlier window's TPO point of control drawn on to the right (nPOC) until a later window trades through it.": "Önceki her pencerenin TPO kontrol noktası, sonraki bir pencere içinden işlem görene kadar sağa uzatılır (nPOC).",
  "Volume profile in each window": "Her pencerede hacim profili",
  "The traded-volume profile of each of the same windows (day, week or sessions), beside its TPO. The Volume profile must be on.": "Aynı pencerelerin (gün, hafta veya seanslar) her birinin işlem hacmi profili, TPO'sunun yanında. Hacim profili açık olmalıdır.",
- "nPOC": "nPOC"
+ "nPOC": "nPOC",
+ "Trend strength": "Trend gücü",
+ "OI at highs and lows": "Tepe ve diplerde OI",
+ "Wide-range candle after a run": "Bir koşudan sonra geniş mum",
+ "Volatility sizing": "Volatiliteye göre boyut",
+ "Liquidation clock": "Likidasyon saati",
+ "Log-volume trend": "Log hacim trendi",
+ "Volume-spike levels": "Hacim sıçraması seviyeleri",
+ "Coiled range": "Sıkışmış aralık",
+ "Open-interest trend": "Açık pozisyon trendi",
+ "Moving-average cross without chop": "Testeresiz ortalama kesişimi",
+ "Weekend candles": "Hafta sonu mumları"
 }

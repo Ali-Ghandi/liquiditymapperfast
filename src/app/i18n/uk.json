@@ -3099,5 +3099,16 @@
  "Each earlier window's TPO point of control drawn on to the right (nPOC) until a later window trades through it.": "POC TPO кожного попереднього вікна продовжується праворуч (nPOC), доки пізніше вікно не проторгує через нього.",
  "Volume profile in each window": "Профіль обсягу в кожному вікні",
  "The traded-volume profile of each of the same windows (day, week or sessions), beside its TPO. The Volume profile must be on.": "Профіль проторгованого обсягу кожного з тих самих вікон (день, тиждень або сесії) поруч із його TPO. Профіль обсягу має бути увімкнений.",
- "nPOC": "nPOC"
+ "nPOC": "nPOC",
+ "Trend strength": "Сила тренду",
+ "OI at highs and lows": "OI на максимумах і мінімумах",
+ "Wide-range candle after a run": "Широка свічка після руху",
+ "Volatility sizing": "Розмір за волатильністю",
+ "Liquidation clock": "Годинник ліквідацій",
+ "Log-volume trend": "Тренд лог-обсягу",
+ "Volume-spike levels": "Рівні сплесків обсягу",
+ "Coiled range": "Стиснутий діапазон",
+ "Open-interest trend": "Тренд відкритого інтересу",
+ "Moving-average cross without chop": "Перетин середньої без пилки",
+ "Weekend candles": "Свічки вихідних"
 }

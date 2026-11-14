@@ -2851,5 +2851,16 @@
  "Each earlier window's TPO point of control drawn on to the right (nPOC) until a later window trades through it.": "이전 각 구간의 TPO POC를 이후 구간이 그 가격을 거래할 때까지 오른쪽으로 연장해 그립니다(nPOC).",
  "Volume profile in each window": "각 구간의 거래량 프로파일",
  "The traded-volume profile of each of the same windows (day, week or sessions), beside its TPO. The Volume profile must be on.": "같은 각 구간(일, 주, 세션)의 거래량 프로파일을 TPO 옆에 그립니다. 거래량 프로파일이 켜져 있어야 합니다.",
- "nPOC": "nPOC"
+ "nPOC": "nPOC",
+ "Trend strength": "추세 강도",
+ "OI at highs and lows": "고점·저점의 OI",
+ "Wide-range candle after a run": "상승 후 넓은 레인지 캔들",
+ "Volatility sizing": "변동성 기반 사이징",
+ "Liquidation clock": "청산 시계",
+ "Log-volume trend": "로그 거래량 추세",
+ "Volume-spike levels": "거래량 급증 레벨",
+ "Coiled range": "압축된 레인지",
+ "Open-interest trend": "미결제약정 추세",
+ "Moving-average cross without chop": "휩쏘 없는 이동평균 교차",
+ "Weekend candles": "주말 캔들"
 }

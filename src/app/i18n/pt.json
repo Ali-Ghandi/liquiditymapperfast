@@ -3053,5 +3053,16 @@
  "Each earlier window's TPO point of control drawn on to the right (nPOC) until a later window trades through it.": "O ponto de controle TPO de cada janela anterior prolongado para a direita (nPOC) até que uma janela posterior negocie através dele.",
  "Volume profile in each window": "Perfil de volume em cada janela",
  "The traded-volume profile of each of the same windows (day, week or sessions), beside its TPO. The Volume profile must be on.": "O perfil de volume negociado de cada uma dessas janelas (dia, semana ou sessões), ao lado do seu TPO. O perfil de volume tem de estar ligado.",
- "nPOC": "nPOC"
+ "nPOC": "nPOC",
+ "Trend strength": "Força da tendência",
+ "OI at highs and lows": "OI em máximas e mínimas",
+ "Wide-range candle after a run": "Vela ampla após uma corrida",
+ "Volatility sizing": "Tamanho por volatilidade",
+ "Liquidation clock": "Relógio de liquidações",
+ "Log-volume trend": "Tendência do volume log",
+ "Volume-spike levels": "Níveis de picos de volume",
+ "Coiled range": "Range comprimido",
+ "Open-interest trend": "Tendência do interesse aberto",
+ "Moving-average cross without chop": "Cruzamento de média sem vaivém",
+ "Weekend candles": "Velas do fim de semana"
 }
