@@ -3080,6 +3080,7 @@
  "Deribit BTC options now: at-the-money implied volatility by expiry, and the 25-delta put over call.": "Options BTC Deribit maintenant : volatilité implicite à la monnaie par échéance, et le put 25-delta au-dessus du call.",
  "The share of premium spent by aggressive option buyers that went to puts, over the last 7 days.": "La part de la prime payée par les acheteurs agressifs d'options qui est allée aux puts, sur les 7 derniers jours.",
  "The BTC daily close against its 21-day EMA, with the price.": "La clôture quotidienne du BTC face à son EMA 21 jours, avec le prix.",
+ "BTC open interest and funding into swing lows, and the share of Binance alt perps on negative funding.": "Open interest et financement du BTC dans les creux de retournement, et la part des perpétuels alt de Binance en financement négatif.",
  "Metrics": "Indicateurs",
  "Could not load the metric charts: {why}": "Impossible de charger les graphiques d'indicateurs : {why}",
  "Loading {what} {done}/{total}…": "Chargement {what} {done}/{total}…",

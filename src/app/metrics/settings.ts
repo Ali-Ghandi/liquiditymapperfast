@@ -4,9 +4,9 @@
  */
 import { t } from '../i18n.ts';
 
-export type MetricTab = 'chart' | 'vol' | 'gap' | 'term' | 'puts' | 'ema';
-export const METRIC_TABS: readonly MetricTab[] = ['chart', 'vol', 'gap', 'term', 'puts', 'ema'];
-export type RangedTab = 'vol' | 'gap' | 'puts' | 'ema';
+export type MetricTab = 'chart' | 'vol' | 'gap' | 'term' | 'puts' | 'ema' | 'pos';
+export const METRIC_TABS: readonly MetricTab[] = ['chart', 'vol', 'gap', 'term', 'puts', 'ema', 'pos'];
+export type RangedTab = 'vol' | 'gap' | 'puts' | 'ema' | 'pos';
 export const METRIC_KEY = 'lmf-metric-tab-v1';
 
 export type RangeKey = '1M' | '2M' | '3M' | '6M' | '1Y' | '2Y' | 'SRC' | 'ALL';
@@ -14,15 +14,16 @@ export type RangeKey = '1M' | '2M' | '3M' | '6M' | '1Y' | '2Y' | 'SRC' | 'ALL';
 /** Where the source charts begin ("since May-23"). */
 export const SOURCE_START = Date.UTC(2023, 4, 1);
 /** Where each tab's longest range begins: the first DVOL hours (Mar 2021), the first put-flow week (Jul 2022), the perpetual's first days (Sep 2019). */
-export const ALL_START: Record<RangedTab, number> = { vol: Date.UTC(2021, 3, 1), gap: Date.UTC(2021, 3, 1), puts: Date.UTC(2022, 6, 7), ema: Date.UTC(2019, 8, 10) };
+export const ALL_START: Record<RangedTab, number> = { vol: Date.UTC(2021, 3, 1), gap: Date.UTC(2021, 3, 1), puts: Date.UTC(2022, 6, 7), ema: Date.UTC(2019, 8, 10), pos: Date.UTC(2020, 0, 1) };
 
 export const RANGES: Record<RangedTab, readonly RangeKey[]> = {
   vol: ['1M', '2M', '3M', '6M', '1Y'],
   gap: ['6M', '1Y', '2Y', 'SRC', 'ALL'],
   puts: ['6M', '1Y', '2Y', 'SRC', 'ALL'],
   ema: ['6M', '1Y', '2Y', 'SRC', 'ALL'],
+  pos: ['1Y', '2Y', 'ALL'],
 };
-export const DEFAULT_RANGE: Record<RangedTab, RangeKey> = { vol: '2M', gap: 'SRC', puts: 'SRC', ema: 'SRC' };
+export const DEFAULT_RANGE: Record<RangedTab, RangeKey> = { vol: '2M', gap: 'SRC', puts: 'SRC', ema: 'SRC', pos: 'ALL' };
 
 const MONTH = 30.44 * 86_400_000;
 /** The first time a range shows, at `now`. */
@@ -55,6 +56,7 @@ export function tabLabel(tab: MetricTab): string {
     case 'term': return t('Term & skew');
     case 'puts': return t('Put flow');
     case 'ema': return t('21 EMA');
+    case 'pos': return t('Positioning');
   }
 }
 
@@ -66,6 +68,7 @@ export function tabTip(tab: MetricTab): string {
     case 'term': return t('Deribit BTC options now: at-the-money implied volatility by expiry, and the 25-delta put over call.');
     case 'puts': return t('The share of premium spent by aggressive option buyers that went to puts, over the last 7 days.');
     case 'ema': return t('The BTC daily close against its 21-day EMA, with the price.');
+    case 'pos': return t('BTC open interest and funding into swing lows, and the share of Binance alt perps on negative funding.');
   }
 }
 

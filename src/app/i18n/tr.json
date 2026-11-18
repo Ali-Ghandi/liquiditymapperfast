@@ -3023,6 +3023,7 @@
  "Deribit BTC options now: at-the-money implied volatility by expiry, and the 25-delta put over call.": "Şu an Deribit BTC opsiyonları: vadeye göre başabaş ima edilen volatilite ve 25-delta put'un call'a farkı.",
  "The share of premium spent by aggressive option buyers that went to puts, over the last 7 days.": "Son 7 günde agresif opsiyon alıcılarının ödediği primin put'lara giden payı.",
  "The BTC daily close against its 21-day EMA, with the price.": "BTC günlük kapanışı ile 21 günlük EMA'sı, fiyatla birlikte.",
+ "BTC open interest and funding into swing lows, and the share of Binance alt perps on negative funding.": "Dönüş diplerindeki BTC açık pozisyonu ve fonlaması ve negatif fonlamadaki Binance alt perpetual'larının payı.",
  "Metrics": "Metrikler",
  "Could not load the metric charts: {why}": "Metrik grafikleri yüklenemedi: {why}",
  "Loading {what} {done}/{total}…": "Yükleniyor: {what} {done}/{total}…",

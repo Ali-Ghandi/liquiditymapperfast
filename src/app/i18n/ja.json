@@ -2878,6 +2878,7 @@
  "Deribit BTC options now: at-the-money implied volatility by expiry, and the 25-delta put over call.": "Deribit BTC オプションの現在：満期ごとの ATM インプライド・ボラと 25 デルタのプット対コール。",
  "The share of premium spent by aggressive option buyers that went to puts, over the last 7 days.": "直近 7 日間に積極的なオプション買い手が支払ったプレミアムのうちプットに向かった割合。",
  "The BTC daily close against its 21-day EMA, with the price.": "BTC の日足終値と 21 日 EMA の比較、価格付き。",
+ "BTC open interest and funding into swing lows, and the share of Binance alt perps on negative funding.": "スイングローにおける BTC の建玉と資金調達率、および資金調達率がマイナスの Binance アルト無期限の割合。",
  "Metrics": "指標",
  "Could not load the metric charts: {why}": "指標チャートを読み込めませんでした: {why}",
  "Loading {what} {done}/{total}…": "{what} を読み込み中 {done}/{total}…",

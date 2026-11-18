@@ -3126,6 +3126,7 @@
  "Deribit BTC options now: at-the-money implied volatility by expiry, and the 25-delta put over call.": "Опціони BTC на Deribit зараз: імпліцитна волатильність «на грошах» за експіраціями та пут 25-дельта над колом.",
  "The share of premium spent by aggressive option buyers that went to puts, over the last 7 days.": "Частка премії агресивних покупців опціонів, що припала на пути, за останні 7 днів.",
  "The BTC daily close against its 21-day EMA, with the price.": "Денне закриття BTC відносно його 21-денної EMA, з ціною.",
+ "BTC open interest and funding into swing lows, and the share of Binance alt perps on negative funding.": "Відкритий інтерес і фінансування BTC на локальних мінімумах і частка альт-перпетуалів Binance з від'ємним фінансуванням.",
  "Metrics": "Метрики",
  "Could not load the metric charts: {why}": "Не вдалося завантажити графіки метрик: {why}",
  "Loading {what} {done}/{total}…": "Завантаження: {what} {done}/{total}…",

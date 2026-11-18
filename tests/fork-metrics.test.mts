@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DAY_MS, HOUR_MS, alignTo, asOfClosedDay, atmIv, bsDelta, ema, expiryReadings, flaggedRuns, ivAtDelta, normCdf, parseOptionName, pctFromEma, realisedVol, skewPct, termShape, type OptionMark, type SmilePoint } from '../src/app/metrics/math.ts';
 import { addTrade, optionKind, parsePutFlow, premiumUsd, readTrade, rowsOf, trailingPutShare, type FlowDay, type OptionTrade } from '../src/app/metrics/putflow.ts';
-import { DEFAULT_RANGE, METRIC_KEY, METRIC_TABS, RANGES, SOURCE_START, readMetricPrefs, rangeStart, writeMetricPrefs } from '../src/app/metrics/settings.ts';
+import { ALL_START, DEFAULT_RANGE, METRIC_KEY, METRIC_TABS, RANGES, SOURCE_START, readMetricPrefs, rangeStart, tabLabel, tabTip, writeMetricPrefs } from '../src/app/metrics/settings.ts';
 import { dayTicks, niceTicks, timeTicks } from '../src/app/metrics/ticks.ts';
 import { nearest } from '../src/app/metrics/plot.ts';
 import {
@@ -234,7 +234,13 @@ test('a browser that never chose a metric tab is on the chart with each tab\'s d
   assert.deepEqual(readMetricPrefs(s), { tab: 'chart', ranges: { ...DEFAULT_RANGE, ema: '2Y' } }, 'unknown tab and a range the tab does not offer are dropped');
   s.setItem(METRIC_KEY, '{oops'); assert.equal(readMetricPrefs(s).tab, 'chart');
   assert.equal(readMetricPrefs(null).tab, 'chart');
-  assert.deepEqual(METRIC_TABS, ['chart', 'vol', 'gap', 'term', 'puts', 'ema']);
+  assert.deepEqual(METRIC_TABS, ['chart', 'vol', 'gap', 'term', 'puts', 'ema', 'pos']);
+  assert.deepEqual(RANGES.pos, ['1Y', '2Y', 'ALL']);
+  assert.equal(DEFAULT_RANGE.pos, 'ALL');
+  assert.equal(ALL_START.pos, Date.UTC(2020, 0, 1));
+  assert.equal(rangeStart('pos', 'ALL', Date.now()), Date.UTC(2020, 0, 1));
+  assert.equal(tabLabel('pos'), 'Positioning');
+  assert.equal(tabTip('pos'), 'BTC open interest and funding into swing lows, and the share of Binance alt perps on negative funding.');
   for (const [tab, keys] of Object.entries(RANGES)) assert.ok((keys as readonly string[]).includes(DEFAULT_RANGE[tab as keyof typeof DEFAULT_RANGE]));
   assert.equal(rangeStart('gap', 'SRC', Date.now()), SOURCE_START);
   close(rangeStart('vol', '2M', 1e12), 1e12 - 2 * 30.44 * DAY_MS, 1);

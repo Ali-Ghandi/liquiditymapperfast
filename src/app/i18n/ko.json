@@ -2878,6 +2878,7 @@
  "Deribit BTC options now: at-the-money implied volatility by expiry, and the 25-delta put over call.": "현재 Deribit BTC 옵션: 만기별 등가격 내재 변동성과 25델타 풋 대 콜.",
  "The share of premium spent by aggressive option buyers that went to puts, over the last 7 days.": "최근 7일간 공격적 옵션 매수자가 지불한 프리미엄 중 풋으로 간 비중.",
  "The BTC daily close against its 21-day EMA, with the price.": "BTC 일간 종가 대 21일 EMA, 가격과 함께.",
+ "BTC open interest and funding into swing lows, and the share of Binance alt perps on negative funding.": "스윙 저점에서의 BTC 미결제약정과 펀딩비, 그리고 펀딩비가 음수인 Binance 알트 무기한의 비중.",
  "Metrics": "지표",
  "Could not load the metric charts: {why}": "지표 차트를 불러올 수 없습니다: {why}",
  "Loading {what} {done}/{total}…": "{what} 불러오는 중 {done}/{total}…",

@@ -69,7 +69,8 @@ export class MetricTabs {
     document.documentElement.dataset.metric = tab;
     this.overlay.hidden = false;
     this.place();
-    void this.#load().then(view => { if (this.#prefs.tab === tab) view.show(tab); }, error => {
+    // Positioning's charts are Task 6: do not ask MetricsView to show 'pos' until that tab exists there.
+    void this.#load().then(view => { if (this.#prefs.tab === tab && tab !== 'pos') view.show(tab); }, error => {
       const note = document.createElement('p');
       note.className = 'mx-status'; note.dataset.state = 'error';
       note.textContent = t('Could not load the metric charts: {why}', { why: error instanceof Error ? error.message : String(error) });

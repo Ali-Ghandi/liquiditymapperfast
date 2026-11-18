@@ -2878,6 +2878,7 @@
  "Deribit BTC options now: at-the-money implied volatility by expiry, and the 25-delta put over call.": "Deribit BTC 期权当前：按到期日的平值隐含波动率，以及 25-delta 看跌相对看涨。",
  "The share of premium spent by aggressive option buyers that went to puts, over the last 7 days.": "过去 7 天主动买方所付期权费中流向看跌期权的比例。",
  "The BTC daily close against its 21-day EMA, with the price.": "BTC 日收盘价相对其 21 日 EMA，附价格。",
+ "BTC open interest and funding into swing lows, and the share of Binance alt perps on negative funding.": "BTC 持仓量与资金费率在波段低点的表现，以及资金费率为负的 Binance 山寨永续占比。",
  "Metrics": "指标",
  "Could not load the metric charts: {why}": "无法加载指标图表：{why}",
  "Loading {what} {done}/{total}…": "正在加载 {what} {done}/{total}…",
