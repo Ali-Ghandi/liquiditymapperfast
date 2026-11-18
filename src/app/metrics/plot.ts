@@ -238,7 +238,12 @@ export class Chart implements Sharpened {
           ctx.fillStyle = L.color; ctx.fillText(L.label, room ? x + 7 : x - 7, ly); ctx.font = `${fs}px ${font}`;
         }
       }
-      if (p.title) { ctx.fillStyle = c.muted; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(p.title, plotL + 4, bx.top + 3); }
+      if (p.title) {
+        // On a patch of the page's colour, so a level line under it does not cross the words.
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        ctx.fillStyle = c.bg; ctx.globalAlpha = 0.85; ctx.fillRect(plotL + 2, bx.top + 2, ctx.measureText(p.title).width + 4, fs + 3); ctx.globalAlpha = 1;
+        ctx.fillStyle = c.muted; ctx.fillText(p.title, plotL + 4, bx.top + 3);
+      }
       ctx.strokeStyle = c.line; ctx.lineWidth = 1; ctx.strokeRect(plotL + 0.5, Math.round(bx.top) + 0.5, plotR - plotL - 1, Math.round(bx.bottom - bx.top));
     }
 
