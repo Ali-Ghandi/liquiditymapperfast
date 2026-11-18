@@ -163,7 +163,11 @@ export class Chart implements Sharpened {
     if (X.kind === 'category') {
       const step = (plotR - plotL) / Math.max(1, xTicks.length), every = Math.max(1, Math.ceil((fs * 4.2) / step));
       xTicks.forEach((tk, i) => { if (i % every === 0) ctx.fillText(tk.label, plotL + step * (i + 0.5), last.bottom + 6); });
-    } else for (const tk of xTicks) ctx.fillText(tk.label, xs(tk.v), last.bottom + 6);
+    } else for (const tk of xTicks) {
+      // Kept inside the canvas: a tick at the plot's left edge (an empty scatter's −1.0%) would otherwise lose its first characters.
+      const half = ctx.measureText(tk.label).width / 2;
+      ctx.fillText(tk.label, Math.min(w - half - 1, Math.max(half + 1, xs(tk.v))), last.bottom + 6);
+    }
     if (X.title) ctx.fillText(X.title, (plotL + plotR) / 2, last.bottom + 6 + fs + 4);
 
     // Panels.
