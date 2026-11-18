@@ -9,18 +9,19 @@ import { DAY_MS } from './math.ts';
 export interface DurableLow { t: number; confirmed: boolean }
 
 /**
- * Cav's (ID Theory) durable lows, coded from his footnote on daily candles' wicks (intraday highs and lows):
+ * Cav's (ID Theory) durable lows, coded from his footnote on daily candles: wicks (intraday highs and lows) for the swing low, the 90-day
+ * high and the hold, and closes for the rally:
  *  - a swing low is a day whose low is the lowest of its 10 days (strictly under the prior 9 days' lows, so a tie keeps the first);
  *  - it is a candidate when that low is at least 15% under the highest intraday high of the prior 90 days;
- *  - it is confirmed when no intraday low goes under it in the next 60 days (through t + 60d) and an intraday high reaches +15% within
- *    those 60 days (his footnote says a close; on Binance BTCUSDT since 2019 both give the same lows);
+ *  - it is confirmed when no intraday low goes under it in the next 60 days (through t + 60d) and a daily close is at least 15% above it
+ *    within those 60 days (his footnote: "followed by a close at least 15% higher");
  *  - a candidate within 60 days (inclusive) of the previous accepted low is a retest of the same episode and is not counted.
  * Every swing low is tested in turn, so a durable low early in a long drawdown counts even when a deeper low comes later. A low whose 60
  * days are not over yet, with no low under it so far, is pending: returned unconfirmed ("now"), at most one (the latest), and it counts as
  * accepted for the retest rule. One whose 60 days ended without the rally has failed and is dropped.
  */
-export function durableLows(time: ArrayLike<number>, high: ArrayLike<number>, low: ArrayLike<number>, now?: number): DurableLow[] {
-  const n = Math.min(time.length, high.length, low.length);
+export function durableLows(time: ArrayLike<number>, high: ArrayLike<number>, low: ArrayLike<number>, close: ArrayLike<number>, now?: number): DurableLow[] {
+  const n = Math.min(time.length, high.length, low.length, close.length);
   const end = now ?? (n ? time[n - 1]! : NaN);
   const confirmed: DurableLow[] = [];
   let latestUnconfirmed: DurableLow | undefined, lastAccepted = -Infinity;
@@ -44,7 +45,7 @@ export function durableLows(time: ArrayLike<number>, high: ArrayLike<number>, lo
       if (tj >= holdEnd) covered = true;
       if (tj > holdEnd) break;
       if (low[j]! < px) held = false;
-      if (high[j]! >= px * 1.15) rallied = true;
+      if (close[j]! >= px * 1.15) rallied = true;
     }
     if (!held) continue;
     if (covered && rallied) { confirmed.push({ t, confirmed: true }); lastAccepted = t; }

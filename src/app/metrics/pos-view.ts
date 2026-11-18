@@ -70,7 +70,7 @@ async function posData(force: boolean): Promise<PosData> {
   const { time, close, high, low } = day.value;
   const funding = fundingOnGrid(time, rates.status === 'fulfilled' ? rates.value : null, archive);
   const contracts = contractsOnGrid(time, close, mergeOiByDay(archive, oi.status === 'fulfilled' ? oi.value : null));
-  const { lows, pending } = nowLow(durableLows(time, high, low), time[time.length - 1]!);
+  const { lows, pending } = nowLow(durableLows(time, high, low, close), time[time.length - 1]!);
   const all = lowEventPoints(lows, time, contracts, funding);
   const now = all.find(p => !p.confirmed) ?? null;
   return { points: all.filter(p => p.confirmed), now, pending, file: archive, notes, hasOi: contracts.some(Number.isFinite), hasFunding: funding.some(Number.isFinite), closes: true };
@@ -196,7 +196,7 @@ function footnote(d: PosData, extra: string[]): string {
   const withOi = d.points.filter(p => Number.isFinite(p.oiPct)).length, fromCav = d.points.filter(p => p.t >= CAV_SAMPLE_START).map(p => p.t);
   return [
     t('A Binance-only approximation of Cav\'s (ID Theory) Coinalyze top-300 charts. Contracts: Binance BTCUSDT perpetual open interest in BTC (USD open interest deflated by price), indexed; daily from Sep 2020 (data.binance.vision archive, then fapi). Funding: BTCUSDT 7-day mean × 3 × 365, annualised %. Alt share: share of USD open interest (contracts × mark price) among the top 50 Binance USDT-M alts by USD open interest whose last funding is negative, a 7-day mean of daily readings.'),
-    t('Durable low (Cav\'s rule, on daily wicks): a day whose intraday low is the lowest of its 10 days and at least 15% under the prior 90-day intraday high, with no intraday low under it for the next 60 days and an intraday high at least 15% above it within those 60 days; a low within 60 days of the previous one is a retest and is not counted. The red "now" point is not a confirmed low.'),
+    t('Durable low (Cav\'s rule, on daily candles): a day whose intraday low is the lowest of its 10 days and at least 15% under the prior 90-day intraday high, with no intraday low under it for the next 60 days and a daily close at least 15% above it within those 60 days; a low within 60 days of the previous one is a retest and is not counted. The red "now" point is not a confirmed low.'),
     ...(d.points.length ? [t('Sample: lows here run from {first} (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding. From Cav\'s sample start (Aug 2022) there are {k} here against his 11, and {j} of his 11 fall in the same month as one here. He reads Coinalyze\'s aggregated candles and this reads Binance\'s BTCUSDT perpetual, so a low can differ by a day or show on one side only.', { first: dateLabel(d.points[0]!.t), n: withOi, m: d.points.length, k: fromCav.length, j: monthsMatched(fromCav, CAV_LOW_MONTHS) })] : []),
     ...d.notes, ...extra,
   ].join(' ');

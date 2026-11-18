@@ -29,13 +29,13 @@ Add one **Positioning** metric tab that stacks three Binance-based approximation
 
 ## Durable low definition (charts 1–2)
 
-Implement Cav’s rule literally, on daily wicks (decided 2026-11-19, after the round-3 review). His footnote: “Durable low = a swing low (lowest daily low of the prior 10 days) at least 15% below the prior 90-day intraday high, not undercut by any wick for the next 60 days, and followed by a close at least 15% higher within those 60 days; a qualifying low within 60 days of the previous one is a retest of the same episode and is not counted.”
+Implement Cav’s rule literally on daily candles: wicks for the swing low, 90-day high and hold, a close for the rally (decided 2026-11-19, after the round-3 and round-4 reviews). His footnote: “Durable low = a swing low (lowest daily low of the prior 10 days) at least 15% below the prior 90-day intraday high, not undercut by any wick for the next 60 days, and followed by a close at least 15% higher within those 60 days; a qualifying low within 60 days of the previous one is a retest of the same episode and is not counted.”
 
 Input: Binance BTCUSDT perpetual daily candles (open time, high, low, close) from the klines the tab already loads.
 
 - **Candidate**: every 10-day swing low, i.e. a day whose intraday low is strictly under the lows of the prior 9 days (the lowest of its 10 days; a tie keeps the first), and at least **15%** under the highest intraday high of the prior **90** days. Every swing low is tested in turn, so a durable low early in a long drawdown counts even if a deeper low comes more than 60 days later.
 - **Hold**: no intraday low under it for **60** calendar days after it, inclusive.
-- **Rally**: an intraday high at least **15%** above it **within those 60 days** (confirmed durable low). Cav’s footnote says a close; on Binance BTCUSDT since 2019 a close and an intraday high give the same lows. A low that held 60 days without that rally has **failed**: neither confirmed nor pending.
+- **Rally**: a daily **close** at least **15%** above it **within those 60 days** (confirmed durable low), as Cav’s footnote says; the swing low, the 90-day high and the hold read wicks. (An intraday-high rally gives the same lows on Binance BTCUSDT since 2019.) A low that held 60 days without that rally has **failed**: neither confirmed nor pending.
 - **Retests**: a low within 60 days (inclusive) of the previous accepted low — confirmed, or the pending one — is the same episode and is not counted.
 - **Event metrics** (contracts and funding changes, funding level) are measured on the low’s day as before: the 30 days into it on the daily grid.
 - **Result** on data to 2026-11-17: 23 confirmed lows from Dec 2019, plus a pending 2026-11-15. From Cav’s sample start (his contracts index is 100 on 29 Jul 2022, so Aug 2022) there are 12: all 11 of Cav’s months (Nov-22, Mar-23, Jun-23, Aug-23, Jan-24, May-24, Aug-24, Apr-25, Nov-25, Feb-26, Jul-26) plus one extra, 2024-10-10. The remaining difference is the venue: he reads Coinalyze’s aggregated candles, we read Binance’s perpetual, so a low can differ by a day or appear on one side only. The footnote compares from Aug 2022 and says how many of his months hold one of ours, both computed from the data.
@@ -81,7 +81,7 @@ All fetches from the visitor’s browser when CORS allows; cache in-tab like oth
 - Extend `MetricTab` / `METRIC_TABS` / labels / tips in `src/app/metrics/settings.ts`.
 - Wire the tab in `tabs.ts` (or equivalent) and `view.ts`: new render path `pos` that builds three panels.
 - New helpers (keep pure and tested):
-  - `durableLows(time, high, low): { t, confirmed }[]`
+  - `durableLows(time, high, low, close): { t, confirmed }[]`
   - `contractsIndex(oi, price): series`
   - `funding7dAnnualised(rates): series`
   - `altNegShare(days): series`

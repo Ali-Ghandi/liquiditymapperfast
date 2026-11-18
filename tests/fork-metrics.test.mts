@@ -273,7 +273,7 @@ test('durableLows: 15% under 90d high, held 60d, then +15% is confirmed; a fresh
     else if (i < 200) close.push(92);
     else close.push(70);
   }
-  const lows = durableLows(time, close, close, t0 + 219 * DAY);
+  const lows = durableLows(time, close, close, close, t0 + 219 * DAY);
   assert.equal(lows.filter(l => l.confirmed).length, 1);
   assert.equal(lows.find(l => l.confirmed)!.t, t0 + 100 * DAY);
   const fresh = lows.filter(l => !l.confirmed);
@@ -322,29 +322,33 @@ test('monthsMatched counts the reference months that hold one of the lows, each 
 });
 
 /** Candles with no wicks (high = low = close), for the tests that are about the rule's timing. */
-const flat = (time: ArrayLike<number>, close: ArrayLike<number>) => durableLows(time, close, close);
+const flat = (time: ArrayLike<number>, close: ArrayLike<number>) => durableLows(time, close, close, close);
 
 test('durableLows: a qualifying 10-day swing low counts even when a deeper low comes more than 60 days later in the same drawdown', () => {
   const t0 = Date.UTC(2024, 0, 1);
   const time = Array.from({ length: 200 }, (_, i) => t0 + i * DAY_MS);
-  // Day 100: low 80 (20% under 100). It holds (lows 84 after it) and an intraday high of 93 (+16%) on day 130 rallies it. Price stays 15%
-  // under the old high throughout (closes 84), so a one-low-per-drawdown rule would only see the deeper low of 70 on day 175.
+  // Day 100: low 80 (20% under 100). It holds (lows 84 after it) and a close of 93 (+16%) on day 130 rallies it; then price sinks back
+  // to 84 and makes a deeper low of 70 on day 175, 75 days on. A one-low-per-drawdown rule would only see day 175.
   const low = time.map((_, i) => (i < 100 ? 100 : i === 100 ? 80 : i < 175 ? 84 : i === 175 ? 70 : 72));
-  const high = time.map((_, i) => (i === 130 ? 93 : low[i]!));
-  assert.deepEqual(durableLows(time, high, low), [{ t: t0 + 100 * DAY_MS, confirmed: true }, { t: t0 + 175 * DAY_MS, confirmed: false }]);
+  const close = time.map((_, i) => (i === 130 ? 93 : low[i]!));
+  assert.deepEqual(durableLows(time, close, low, close), [{ t: t0 + 100 * DAY_MS, confirmed: true }, { t: t0 + 175 * DAY_MS, confirmed: false }]);
 });
 
-test('durableLows reads wicks: the 90-day high and the rally are intraday highs, and a wick under the low within 60 days breaks it', () => {
+test('durableLows reads wicks for the 90-day high and the hold, and a close for the +15% rally (Cav: "followed by a close at least 15% higher")', () => {
   const t0 = Date.UTC(2024, 0, 1);
   const time = Array.from({ length: 220 }, (_, i) => t0 + i * DAY_MS);
   // Closes and lows at 90 for 100 days, with one wick to 100 on day 50: day 100's low of 80 is 20% under that intraday high (only 11%
-  // under the closes). Lows 82 / highs 84 after it, a high of 93 (+16%) on day 140, then 90 from day 160.
+  // under the closes). Lows 82 / closes 83 / highs 84 after it, a high of 93 (+16%) on day 140, then 90 from day 160.
   const low = time.map((_, i) => (i < 100 ? 90 : i === 100 ? 80 : i < 160 ? 82 : 90));
   const high = time.map((_, i) => (i === 50 ? 100 : i === 140 ? 93 : i >= 100 && i < 160 ? 84 : 90));
-  assert.deepEqual(durableLows(time, high, low), [{ t: t0 + 100 * DAY_MS, confirmed: true }]);
+  const close = (rallyClose: number) => time.map((_, i) => (i === 140 ? rallyClose : i >= 100 && i < 160 ? 83 : 90));
+  // The wick to 93 alone (close 83) is not the rally: the low held 60 days without it and has failed.
+  assert.deepEqual(durableLows(time, high, low, close(83)), []);
+  // A close of 93 on day 140 is.
+  assert.deepEqual(durableLows(time, high, low, close(93)), [{ t: t0 + 100 * DAY_MS, confirmed: true }]);
   // A wick to 79 on day 130 undercuts it (no close needs to): day 100 fails, and day 130 is itself a swing low that holds and rallies.
   const wick = low.map((v, i) => (i === 130 ? 79 : v));
-  assert.deepEqual(durableLows(time, high, wick), [{ t: t0 + 130 * DAY_MS, confirmed: true }]);
+  assert.deepEqual(durableLows(time, high, wick, close(93)), [{ t: t0 + 130 * DAY_MS, confirmed: true }]);
 });
 
 test('durableLows: a qualifying low within 60 days of the previous accepted low is a retest of the same episode and is not counted', () => {
