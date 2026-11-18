@@ -1270,6 +1270,8 @@ html:is([data-layout^="phone"], [data-bar="compact"]) .pane.heat .map-draw-phone
 .mx-status[data-state="error"] { color: var(--ask); }
 .mx-body { flex: 1; min-height: 0; display: grid; gap: 14px; }
 .mx-body[data-layout="two"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.mx-body[data-layout="pos"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1.5fr) minmax(0, 1fr); }
+.mx-body[data-layout="pos"] > .mx-chart:nth-child(3) { grid-column: 1 / -1; }
 .mx-chart { position: relative; min-width: 0; min-height: 0; }
 .mx-chart canvas { position: absolute; inset: 0; touch-action: none; }
 .mx-foot { font-size: 11px; color: var(--muted); line-height: 1.35; }

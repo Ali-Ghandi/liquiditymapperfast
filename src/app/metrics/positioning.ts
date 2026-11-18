@@ -245,3 +245,86 @@ export function dailyOiFromMetrics(before: string | null, own: string | null, da
   if (Number.isFinite(close)) return close;
   return own === null ? NaN : metricsOiAt(own, `${iso(day)} 00:00:00`);
 }
+
+
+/** A daily series: UTC day-open times and one value each (the shape `data.ts` loads). */
+interface DaySeries { time: ArrayLike<number>; close: ArrayLike<number> }
+
+/**
+ * BTC open interest (contracts) by UTC day number: the API's month first, then the archive over it (the archive's reading for a day wins
+ * and it reaches years further back). Missing, NaN or non-positive readings are left out, so a day without one stays without.
+ */
+export function mergeOiByDay(file: PositioningFile | null, api: DaySeries | null): Map<number, number> {
+  const out = new Map<number, number>();
+  if (api) for (let i = 0; i < Math.min(api.time.length, api.close.length); i++) {
+    const v = api.close[i]!;
+    if (v > 0 && Number.isFinite(v)) out.set(Math.floor(api.time[i]! / DAY_MS), v);
+  }
+  if (file) for (const [day, oi] of file.days) if (oi > 0 && Number.isFinite(oi)) out.set(day, oi);
+  return out;
+}
+
+/**
+ * The contracts index on a day grid (`times` are UTC day opens, `price` the closes), from the first day that has open interest. Binance's
+ * BTCUSDT open interest is already counted in BTC, i.e. USD open interest deflated by price, so it goes to `contractsIndex` as USD
+ * (OI × close) to be deflated once: the result is OI over that first day's, × 100. NaN on days without OI.
+ */
+export function contractsOnGrid(times: ArrayLike<number>, price: ArrayLike<number>, oi: ReadonlyMap<number, number>): Float64Array {
+  const n = Math.min(times.length, price.length), out = new Float64Array(n).fill(NaN);
+  const at = (i: number): number => oi.get(Math.floor(times[i]! / DAY_MS)) ?? NaN;
+  let k = 0;
+  while (k < n && !(at(k) > 0 && price[k]! > 0)) k++;
+  if (k >= n) return out;
+  const usd = new Float64Array(n - k), px = new Float64Array(n - k);
+  for (let i = k; i < n; i++) { usd[i - k] = at(i) * price[i]!; px[i - k] = price[i]!; }
+  out.set(contractsIndex(usd, px), k);
+  return out;
+}
+
+/**
+ * 7-day annualised funding on a day grid: from the funding settlements (`funding7dAnnualised`) where they give a value, else the archive's
+ * stored funding7d for that UTC day (so the charts still draw when fapi cannot be read), else NaN.
+ */
+export function fundingOnGrid(times: ArrayLike<number>, rates: DaySeries | null, file: PositioningFile | null): Float64Array {
+  const out = rates ? funding7dAnnualised(rates.time, rates.close, times) : new Float64Array(times.length).fill(NaN);
+  if (file) for (let i = 0; i < times.length; i++) {
+    if (Number.isFinite(out[i]!)) continue;
+    const row = file.days[Math.floor(times[i]! / DAY_MS) - file.from];
+    if (row && Number.isFinite(row[2])) out[i] = row[2];
+  }
+  return out;
+}
+
+/** Chart C's series: one entry per UTC day from the first reading to the last. */
+export interface AltNegSeries { time: Float64Array; raw: Float64Array; avg7: Float64Array; live: boolean }
+
+/**
+ * The alt negative-funding share by UTC day: the archive's daily readings, plus `live` (a reading taken now) on its own day, replacing an
+ * archive reading there. `avg7` is the mean of the readings held in the 7 days ending on each day (NaN where there are none, so the line
+ * breaks rather than inventing a value). Empty when there are no readings.
+ */
+export function altNegSeries(file: PositioningFile | null, live: { at: number; value: number } | null): AltNegSeries {
+  const by = new Map<number, number>();
+  if (file) for (const [day, , , a] of file.days) if (Number.isFinite(a)) by.set(day, a);
+  const liveDay = live && Number.isFinite(live.value) ? Math.floor(live.at / DAY_MS) : null;
+  if (liveDay !== null) by.set(liveDay, live!.value);
+  if (!by.size) return { time: new Float64Array(0), raw: new Float64Array(0), avg7: new Float64Array(0), live: false };
+  const days = [...by.keys()], first = Math.min(...days), last = Math.max(...days), n = last - first + 1;
+  const time = new Float64Array(n), raw = new Float64Array(n).fill(NaN), avg7 = new Float64Array(n).fill(NaN);
+  for (let k = 0; k < n; k++) { time[k] = (first + k) * DAY_MS; raw[k] = by.get(first + k) ?? NaN; }
+  for (let k = 0; k < n; k++) {
+    let sum = 0, count = 0;
+    for (let j = Math.max(0, k - 6); j <= k; j++) if (Number.isFinite(raw[j]!)) { sum += raw[j]!; count++; }
+    if (count) avg7[k] = sum / count;
+  }
+  return { time, raw, avg7, live: liveDay !== null };
+}
+
+/**
+ * The "now" event for charts A and B: the pending (unconfirmed) low when there is one; otherwise the last closed day (`lastDay`), the way
+ * Cav's red dot is today's reading, appended unconfirmed. `pending` says which.
+ */
+export function nowLow(lows: DurableLow[], lastDay: number): { lows: DurableLow[]; pending: boolean } {
+  if (lows.some(l => !l.confirmed)) return { lows, pending: true };
+  return { lows: [...lows, { t: lastDay, confirmed: false }], pending: false };
+}

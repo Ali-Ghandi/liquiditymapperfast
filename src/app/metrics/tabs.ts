@@ -1,5 +1,5 @@
 /**
- * The metric tabs: Chart | Vol | Vol gap | Term & skew | Put flow | 21 EMA. Chart is the page as it always was and the tab every browser
+ * The metric tabs: Chart | Volatility | Vol gap | Term & skew | Put flow | 21 EMA | Positioning. Chart is the page as it always was and the tab every browser
  * starts on; another tab lays its view over the map and the panes (which keep running underneath) until Chart is chosen again. On a
  * computer the tabs sit in the status bar; on a phone they are a section of Settings and a row along the top of the view. The tab chosen and
  * each tab's range are kept in this browser (`settings.ts`). The charts themselves load only when a metric tab is first opened (`view.ts`).
@@ -69,8 +69,7 @@ export class MetricTabs {
     document.documentElement.dataset.metric = tab;
     this.overlay.hidden = false;
     this.place();
-    // Positioning's charts are Task 6: do not ask MetricsView to show 'pos' until that tab exists there.
-    void this.#load().then(view => { if (this.#prefs.tab === tab && tab !== 'pos') view.show(tab); }, error => {
+    void this.#load().then(view => { if (this.#prefs.tab === tab) view.show(tab); }, error => {
       const note = document.createElement('p');
       note.className = 'mx-status'; note.dataset.state = 'error';
       note.textContent = t('Could not load the metric charts: {why}', { why: error instanceof Error ? error.message : String(error) });

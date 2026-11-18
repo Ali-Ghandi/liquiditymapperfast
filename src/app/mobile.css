@@ -566,3 +566,7 @@ html:not([data-layout="desktop"]) .mx-content { padding: 8px 8px calc(6px + env(
 html:not([data-layout="desktop"]) .mx-title { flex-basis: 100%; font-size: 12.5px; }
 html:not([data-layout="desktop"]) .mx-ranges button, html:not([data-layout="desktop"]) .mx-refresh { min-height: 30px; padding: 0 10px; font-size: 12px; }
 html[data-layout="phone"] .mx-body[data-layout="two"] { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+/* Positioning: three charts, a phone's height each, scrolled; a vertical drag on a chart scrolls too (a tap still reads a point). */
+html[data-layout="phone"] .mx-content.mx-scroll { overflow-y: auto; }
+html[data-layout="phone"] .mx-body[data-layout="pos"] { flex: none; grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(3, 280px); }
+html[data-layout="phone"] .mx-body[data-layout="pos"] .mx-chart canvas { touch-action: pan-y; }

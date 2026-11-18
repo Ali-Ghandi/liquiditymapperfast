@@ -2,12 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DAY_MS, HOUR_MS, alignTo, asOfClosedDay, atmIv, bsDelta, ema, expiryReadings, flaggedRuns, ivAtDelta, normCdf, parseOptionName, pctFromEma, realisedVol, skewPct, termShape, type OptionMark, type SmilePoint } from '../src/app/metrics/math.ts';
 import { addTrade, optionKind, parsePutFlow, premiumUsd, readTrade, rowsOf, trailingPutShare, type FlowDay, type OptionTrade } from '../src/app/metrics/putflow.ts';
-import { ALL_START, DEFAULT_RANGE, METRIC_KEY, METRIC_TABS, RANGES, SOURCE_START, readMetricPrefs, rangeStart, tabLabel, tabTip, writeMetricPrefs } from '../src/app/metrics/settings.ts';
+import { ALL_START, DEFAULT_RANGE, METRIC_KEY, METRIC_TABS, RANGES, SOURCE_START, rangeLabel, readMetricPrefs, rangeStart, tabLabel, tabTip, writeMetricPrefs } from '../src/app/metrics/settings.ts';
 import { dayTicks, niceTicks, timeTicks } from '../src/app/metrics/ticks.ts';
 import { nearest } from '../src/app/metrics/plot.ts';
 import {
-  altCandidates, altNegShare, contractsIndex, dailyOiFromMetrics, durableLows, funding7dAnnualised, lowEventPoints, parsePositioning, pctChange,
-  pointChange, usdtPerpAlts,
+  altCandidates, altNegSeries, altNegShare, contractsIndex, contractsOnGrid, dailyOiFromMetrics, durableLows, funding7dAnnualised, fundingOnGrid,
+  lowEventPoints, mergeOiByDay, nowLow, parsePositioning, pctChange, pointChange, usdtPerpAlts, type PositioningFile,
 } from '../src/app/metrics/positioning.ts';
 
 const close = (a: number, b: number, eps: number, what = ''): void => assert.ok(Math.abs(a - b) <= eps, `${what} ${a} is not within ${eps} of ${b}`);
@@ -420,4 +420,79 @@ test('dailyOiFromMetrics: the 23:55 reading of the day before, else the day\'s 0
   assert.ok(Number.isNaN(dailyOiFromMetrics(before, head + '2024-07-11 00:00:00,BTCUSDT,0E-8,0\n', d)!), 'only placeholders: NaN');
   assert.ok(Number.isNaN(dailyOiFromMetrics(before, null, d)!), 'a file but no reading: NaN');
   assert.equal(dailyOiFromMetrics(null, null, d), null, 'no files');
+});
+
+/** ---- Positioning view data assembly ---------------------------------------------------------------------------------------------- */
+
+const posFile = (from: number, rows: [number, number, number][]): PositioningFile =>
+  ({ v: 1, source: 's', builtAt: 0, from, through: from + rows.length - 1, days: rows.map(([oi, f, a], k) => [from + k, oi, f, a]) });
+
+test('mergeOiByDay: the archive overrides and extends the API by UTC day; missing or non-positive readings are left out', () => {
+  const d0 = 20_000;
+  const file = posFile(d0, [[10, 1, NaN], [NaN, 1, NaN], [12, 1, NaN], [0, 1, NaN]]);
+  const api = { time: Float64Array.from([d0 + 1, d0 + 2, d0 + 4].map(d => d * DAY_MS)), close: Float64Array.from([21, 22, 24]) };
+  const m = mergeOiByDay(file, api);
+  assert.deepEqual([...m.entries()].sort((a, b) => a[0] - b[0]), [[d0, 10], [d0 + 1, 21], [d0 + 2, 12], [d0 + 4, 24]]);
+  assert.deepEqual([...mergeOiByDay(null, api).keys()], [d0 + 1, d0 + 2, d0 + 4], 'API only');
+  assert.equal(mergeOiByDay(file, null).size, 2, 'archive only');
+  assert.equal(mergeOiByDay(null, null).size, 0);
+});
+
+test('contractsOnGrid: Binance OI is already in BTC, so the index is OI over the first day with OI, × 100 (not deflated twice)', () => {
+  const d0 = 20_000, times = [0, 1, 2, 3, 4].map(k => (d0 + k) * DAY_MS), price = [100, 200, 400, 800, 100];
+  const oi = new Map([[d0 + 1, 50], [d0 + 2, 55], [d0 + 4, 40]]);
+  const idx = contractsOnGrid(times, price, oi);
+  assert.ok(Number.isNaN(idx[0]!), 'before the first OI');
+  close(idx[1]!, 100, 1e-9);
+  close(idx[2]!, 110, 1e-9, 'price doubled, contracts +10 %');
+  assert.ok(Number.isNaN(idx[3]!), 'a day without OI stays NaN');
+  close(idx[4]!, 80, 1e-9);
+  assert.ok(contractsOnGrid(times, price, new Map()).every(Number.isNaN), 'no OI at all');
+});
+
+test('fundingOnGrid: live 7-day funding where it reads, the archive\'s funding7d on days it does not, NaN when neither', () => {
+  const d0 = 20_000, times = [0, 1, 2, 3].map(k => (d0 + k) * DAY_MS);
+  const file = posFile(d0, [[1, 5, NaN], [1, 6, NaN], [1, 7, NaN]]);
+  const rates = { time: Float64Array.from([2, 3].flatMap(k => [0, 1, 2].map(j => (d0 + k) * DAY_MS + j * 8 * HOUR_MS))), close: new Float64Array(6).fill(0.0001) };
+  const f = fundingOnGrid(times, rates, file);
+  close(f[0]!, 5, 1e-9, 'archive');
+  close(f[1]!, 6, 1e-9, 'archive');
+  close(f[2]!, 0.0001 * 3 * 365 * 100, 1e-9, 'live');
+  close(f[3]!, 0.0001 * 3 * 365 * 100, 1e-9, 'live, after the archive');
+  const archiveOnly = fundingOnGrid(times, null, file);
+  close(archiveOnly[2]!, 7, 1e-9);
+  assert.ok(Number.isNaN(archiveOnly[3]!), 'neither');
+});
+
+test('altNegSeries: archive readings plus a live reading on today, a 7-day trailing mean of the readings held, and gaps kept', () => {
+  const d0 = 20_000;
+  const file = posFile(d0, [[1, 1, 10], [1, 1, NaN], [1, 1, 20], [1, 1, NaN]]);
+  const s = altNegSeries(file, { at: (d0 + 5) * DAY_MS + 3 * HOUR_MS, value: 30 });
+  assert.deepEqual(Array.from(s.time), [0, 1, 2, 3, 4, 5].map(k => (d0 + k) * DAY_MS));
+  assert.deepEqual(Array.from(s.raw).map(v => (Number.isNaN(v) ? null : v)), [10, null, 20, null, null, 30]);
+  close(s.avg7[0]!, 10, 1e-9); close(s.avg7[1]!, 10, 1e-9); close(s.avg7[2]!, 15, 1e-9); close(s.avg7[5]!, 20, 1e-9);
+  assert.equal(s.live, true);
+  const single = altNegSeries(posFile(d0, [[1, 1, NaN], [1, 1, 11.7]]), null);
+  assert.deepEqual(Array.from(single.time), [(d0 + 1) * DAY_MS], 'one archive reading: one point');
+  close(single.avg7[0]!, 11.7, 1e-9);
+  assert.equal(single.live, false);
+  const live = altNegSeries(posFile(d0, [[1, 1, 12]]), { at: d0 * DAY_MS + HOUR_MS, value: 14 });
+  assert.deepEqual(Array.from(live.raw), [14], 'the live reading replaces the archive on the same day');
+  assert.equal(altNegSeries(null, null).time.length, 0);
+  // A reading every 8 days leaves a day with none in its 7: NaN, so the line breaks there.
+  const sparse = altNegSeries(posFile(d0, [[1, 1, 10], [1, 1, NaN], [1, 1, NaN], [1, 1, NaN], [1, 1, NaN], [1, 1, NaN], [1, 1, NaN], [1, 1, NaN], [1, 1, 20]]), null);
+  assert.ok(Number.isNaN(sparse.avg7[7]!));
+});
+
+test('nowLow: the pending (unconfirmed) low is now; with none pending, the last closed day is', () => {
+  const lows = [{ t: 1, confirmed: true }, { t: 5, confirmed: false }];
+  assert.deepEqual(nowLow(lows, 9), { lows, pending: true });
+  assert.deepEqual(nowLow([{ t: 1, confirmed: true }], 9), { lows: [{ t: 1, confirmed: true }, { t: 9, confirmed: false }], pending: false });
+  assert.deepEqual(nowLow([], 9), { lows: [{ t: 9, confirmed: false }], pending: false });
+});
+
+test('rangeLabel: Positioning\'s longest range says where it begins (Jan 2020)', () => {
+  assert.equal(rangeLabel('pos', 'ALL'), 'Since Jan 2020');
+  assert.equal(rangeLabel('gap', 'ALL'), 'Since Apr 2021');
+  assert.equal(ALL_START.pos, Date.UTC(2020, 0, 1));
 });

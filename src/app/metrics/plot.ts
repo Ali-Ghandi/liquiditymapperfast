@@ -1,7 +1,7 @@
 /**
- * A small canvas chart for the metric tabs: stacked panels over one x axis (time, a log axis of days, or categories), each with its own
- * y axis (linear or log), and layers drawn in order: shaded bands across every panel, fills between two lines, bars, lines, dots, level
- * lines and labels. A crosshair follows the pointer (mouse, pen or finger) and a readout says the values under it.
+ * A small canvas chart for the metric tabs: stacked panels over one x axis (time, a log axis of days, categories, or plain values), each
+ * with its own y axis (linear or log), and layers drawn in order: shaded bands across every panel, shaded boxes, fills between two lines,
+ * bars, lines, scatters, dots, level lines (across or up) and labels. A crosshair follows the pointer (mouse, pen or finger) and a readout says the values under it.
  */
 import { dayTicks, niceTicks, timeTicks } from './ticks.ts';
 import { pixelRatio, sharpens, stopSharpening, type Sharpened } from '../pixel-ratio.ts';
@@ -14,7 +14,13 @@ export type Layer =
   | { kind: 'area'; x: ArrayLike<number>; y: ArrayLike<number>; base: number; color: string }
   | { kind: 'bars'; x: ArrayLike<number>; y: ArrayLike<number>; base: number; color: (i: number) => string; width?: number }
   | { kind: 'hline'; y: number; color: string; dash?: boolean; width?: number }
-  | { kind: 'dot'; x: number; y: number; color: string; label?: string };
+  | { kind: 'dot'; x: number; y: number; color: string; label?: string }
+  /** Points at (x[i], y[i]), each its own colour; non-finite ones are skipped. `r` is the radius (4 px). */
+  | { kind: 'scatter'; x: ArrayLike<number>; y: ArrayLike<number>; color: (i: number) => string; r?: number }
+  /** A vertical level line at x (zero on a value axis). */
+  | { kind: 'vline'; x: number; color: string; dash?: boolean; width?: number }
+  /** A shaded box in data units (±Infinity reaches the panel's edge), e.g. a scatter's quadrant; drawn in layer order. */
+  | { kind: 'rect'; x0: number; x1: number; y0: number; y1: number; color: string; label?: string; labelColor?: string };
 
 export interface Panel {
   weight: number;
@@ -29,7 +35,8 @@ export interface Panel {
 }
 
 export interface ChartSpec {
-  x: { kind: 'time' | 'logdays' | 'category'; min: number; max: number; labels?: string[]; timeZone?: string };
+  /** `value` is a plain linear axis (a scatter's x), its tick labels from `format` (as a panel's y labels are); `title` names the axis, under its labels. */
+  x: { kind: 'time' | 'logdays' | 'category' | 'value'; min: number; max: number; labels?: string[]; timeZone?: string; format?: (v: number, step: number) => string; title?: string };
   panels: Panel[];
   /** Shaded spans of x drawn behind every panel. */
   bands?: { runs: [number, number][]; color: string; minWidth?: number }[];
@@ -91,7 +98,7 @@ export class Chart implements Sharpened {
     const font = getComputedStyle(this.root).fontFamily || 'sans-serif', small = w < 520;
     const fs = small ? 10 : 11;
     ctx.font = `${fs}px ${font}`;
-    const pad = { ...PAD, r: small ? 46 : PAD.r };
+    const pad = { ...PAD, r: small ? 46 : PAD.r, b: PAD.b + (spec.x.title ? fs + 4 : 0) };
     const legendH = spec.legend?.length ? fs + 10 : 0;
     const plotL = pad.l, plotR = w - pad.r, top = pad.t + legendH, bottom = h - pad.b;
     const total = spec.panels.reduce((s, p) => s + p.weight, 0), avail = bottom - top - pad.gap * (spec.panels.length - 1);
@@ -117,6 +124,7 @@ export class Chart implements Sharpened {
           if (L.kind === 'line' || L.kind === 'bars' || L.kind === 'area') { for (let i = 0; i < L.y.length; i++) if (inRange(L.x[i]!)) see(L.y[i]!); if (L.kind !== 'line') see(L.base); }
           else if (L.kind === 'fill') { for (let i = 0; i < L.a.length; i++) if (inRange(L.x[i]!)) { see(L.a[i]!); see(L.b[i]!); } }
           else if (L.kind === 'dot') see(L.y);
+          else if (L.kind === 'scatter') { for (let i = 0; i < L.y.length; i++) if (inRange(L.x[i]!)) see(L.y[i]!); }
         }
         for (const v of p.include ?? []) see(v);
       }
@@ -144,6 +152,7 @@ export class Chart implements Sharpened {
     ctx.textBaseline = 'top'; ctx.textAlign = 'center';
     const xTicks: { v: number; label: string }[] = X.kind === 'time' ? timeTicks(X.min, X.max, Math.max(2, Math.floor((plotR - plotL) / (small ? 70 : 95))), X.timeZone)
       : X.kind === 'logdays' ? dayTicks(X.min, X.max)
+      : X.kind === 'value' ? valueTicks(X.min, X.max, Math.max(2, Math.floor((plotR - plotL) / (small ? 60 : 80))), X.format)
       : (X.labels ?? []).map((label, i) => ({ v: i, label }));
     if (X.kind !== 'category') {
       ctx.strokeStyle = c.line; ctx.lineWidth = 1;
@@ -155,6 +164,7 @@ export class Chart implements Sharpened {
       const step = (plotR - plotL) / Math.max(1, xTicks.length), every = Math.max(1, Math.ceil((fs * 4.2) / step));
       xTicks.forEach((tk, i) => { if (i % every === 0) ctx.fillText(tk.label, plotL + step * (i + 0.5), last.bottom + 6); });
     } else for (const tk of xTicks) ctx.fillText(tk.label, xs(tk.v), last.bottom + 6);
+    if (X.title) ctx.fillText(X.title, (plotL + plotR) / 2, last.bottom + 6 + fs + 4);
 
     // Panels.
     const catX = (i: number): number => plotL + ((plotR - plotL) / Math.max(1, X.labels?.length ?? 1)) * (i + 0.5);
@@ -174,7 +184,35 @@ export class Chart implements Sharpened {
       ctx.save();
       ctx.beginPath(); ctx.rect(plotL, bx.top, plotR - plotL, bx.bottom - bx.top); ctx.clip();
       for (const L of p.layers) {
-        if (L.kind === 'hline') {
+        if (L.kind === 'rect') {
+          const clamp = (v: number, a: number, b: number): number => Math.min(Math.max(v, a), b);
+          const xa = clamp(Number.isFinite(L.x0) ? px(L.x0) : L.x0 < 0 ? plotL : plotR, plotL, plotR), xb = clamp(Number.isFinite(L.x1) ? px(L.x1) : L.x1 < 0 ? plotL : plotR, plotL, plotR);
+          const ya = clamp(Number.isFinite(L.y0) ? ys(L.y0) : L.y0 < 0 ? bx.bottom : bx.top, bx.top, bx.bottom), yb = clamp(Number.isFinite(L.y1) ? ys(L.y1) : L.y1 < 0 ? bx.bottom : bx.top, bx.top, bx.bottom);
+          const l = Math.min(xa, xb), t = Math.min(ya, yb), w = Math.abs(xb - xa), h = Math.abs(yb - ya);
+          ctx.fillStyle = L.color; ctx.fillRect(l, t, w, h);
+          ctx.font = `${fs - 1}px ${font}`;
+          // In the box's corner furthest from the plot's centre, so it stays clear of the points in the middle; a box at the panel's top
+          // has it a line lower, under the panel's title. Left out where it does not fit.
+          const under = p.title && t <= bx.top + 1 ? fs + 6 : 0;
+          if (L.label && ctx.measureText(L.label).width + 10 <= w && h > fs * 2 + under) {
+            const right = l + w / 2 > (plotL + plotR) / 2, low = t + h / 2 > (bx.top + bx.bottom) / 2;
+            ctx.fillStyle = L.labelColor ?? c.muted; ctx.textAlign = right ? 'right' : 'left'; ctx.textBaseline = low ? 'bottom' : 'top';
+            ctx.fillText(L.label, right ? l + w - 5 : l + 5, low ? t + h - 4 : t + 4 + under);
+          }
+          ctx.font = `${fs}px ${font}`;
+        } else if (L.kind === 'vline') {
+          ctx.strokeStyle = L.color; ctx.lineWidth = L.width ?? 1.2; ctx.setLineDash(L.dash ? [5, 4] : []);
+          const x = Math.round(px(L.x)) + 0.5; ctx.beginPath(); ctx.moveTo(x, bx.top); ctx.lineTo(x, bx.bottom); ctx.stroke(); ctx.setLineDash([]);
+        } else if (L.kind === 'scatter') {
+          const r = L.r ?? 4;
+          for (let i = 0; i < Math.min(L.x.length, L.y.length); i++) {
+            const xv = L.x[i]!, yv = L.y[i]!;
+            if (!Number.isFinite(xv) || !Number.isFinite(yv) || (p.log && yv <= 0)) continue;
+            // A ring of the page's colour keeps neighbouring points apart.
+            ctx.beginPath(); ctx.arc(px(xv), ys(yv), r, 0, Math.PI * 2);
+            ctx.fillStyle = L.color(i); ctx.fill(); ctx.strokeStyle = c.bg; ctx.lineWidth = 1; ctx.stroke();
+          }
+        } else if (L.kind === 'hline') {
           ctx.strokeStyle = L.color; ctx.lineWidth = L.width ?? 1.2; ctx.setLineDash(L.dash ? [5, 4] : []);
           const y = ys(L.y); ctx.beginPath(); ctx.moveTo(plotL, y); ctx.lineTo(plotR, y); ctx.stroke(); ctx.setLineDash([]);
         } else if (L.kind === 'bars') {
@@ -279,6 +317,12 @@ export class Chart implements Sharpened {
       }
     }
   }
+}
+
+/** Ticks for a plain value axis, labelled by `format` (or as numbers). */
+function valueTicks(lo: number, hi: number, count: number, format?: (v: number, step: number) => string): { v: number; label: string }[] {
+  const ticks = niceTicks(lo, hi, count), step = ticks.length > 1 ? Math.abs(ticks[1]! - ticks[0]!) : 1;
+  return ticks.map(v => ({ v, label: format ? format(v, step) : String(+v.toFixed(6)) }));
 }
 
 function countIn(x: ArrayLike<number>, lo: number, hi: number): number { let n = 0; for (let i = 0; i < x.length; i++) if (x[i]! >= lo && x[i]! <= hi) n++; return n; }
