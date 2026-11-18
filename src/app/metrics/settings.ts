@@ -15,9 +15,9 @@ export type RangeKey = '1M' | '2M' | '3M' | '6M' | '1Y' | '2Y' | 'SRC' | 'ALL';
 export const SOURCE_START = Date.UTC(2023, 4, 1);
 /**
  * Where each tab's longest range begins: the first DVOL hours (Mar 2021), the first put-flow week (Jul 2022), the perpetual's first days
- * (Sep 2019), and for Positioning's alt-share chart Jan 2020 (before the first archived open interest, Sep 2020).
+ * (Sep 2019), and for Positioning's alt-share chart Dec 2021 (data.binance.vision's first alt metrics, from which its history is read).
  */
-export const ALL_START: Record<RangedTab, number> = { vol: Date.UTC(2021, 3, 1), gap: Date.UTC(2021, 3, 1), puts: Date.UTC(2022, 6, 7), ema: Date.UTC(2019, 8, 10), pos: Date.UTC(2020, 0, 1) };
+export const ALL_START: Record<RangedTab, number> = { vol: Date.UTC(2021, 3, 1), gap: Date.UTC(2021, 3, 1), puts: Date.UTC(2022, 6, 7), ema: Date.UTC(2019, 8, 10), pos: Date.UTC(2021, 11, 1) };
 
 export const RANGES: Record<RangedTab, readonly RangeKey[]> = {
   vol: ['1M', '2M', '3M', '6M', '1Y'],
@@ -46,7 +46,7 @@ export function rangeStart(tab: RangedTab, key: RangeKey, now: number): number {
 /** What the range's button says. */
 export function rangeLabel(tab: RangedTab, key: RangeKey): string {
   if (key === 'SRC') return t('Since May 2023');
-  if (key === 'ALL') return tab === 'puts' ? t('Since Jul 2022') : tab === 'ema' ? t('Since Sep 2019') : tab === 'pos' ? t('Since Jan 2020') : t('Since Apr 2021');
+  if (key === 'ALL') return tab === 'puts' ? t('Since Jul 2022') : tab === 'ema' ? t('Since Sep 2019') : tab === 'pos' ? t('Since Dec 2021') : t('Since Apr 2021');
   return key;
 }
 

@@ -63,7 +63,13 @@ Use Binance BTCUSDT perpetual daily candles (highs and lows) for detection, from
 - Each day (UTC): among those markets, OI-weighted share where funding &lt; 0.
 - Display the **7-day trailing average** of that share as percent: the mean of the daily readings held in the 7 days ending on each day. Until a window holds 7 readings it is labelled “mean of *n* readings”, not “7d mean”. Each daily reading is a grey dot drawn over the mean line; while the history is short the mean is also marked each day as a small purple dot on top, so both show where they coincide.
 - The live reading (taken when the tab opens, on today’s UTC day) is drawn as its own red dot with its value; when it cannot be read, no red dot is drawn and the legend says it is unavailable.
-- If CORS or rate limits make live multi-symbol history too heavy, fall back to a prebuilt `alt-neg-funding.json` updated by the Pages workflow (same pattern as `put-flow.json`), still sourced only from Binance public endpoints — prefer live first; add the file only if live fails in real browsers.
+- **History (decided 2026-11-19): from data.binance.vision**, because fapi answers HTTP 451 to GitHub’s runners. Stored in `positioning.json` (field 4 of each day; `altDef` names the definition, `altExclude` the left-out symbols):
+  - Universe per UTC day: every USDT-M symbol (BTCUSDT apart) with a daily metrics file that day and a positive USD open interest at the day’s close (`sum_open_interest_value`, 23:55 reading, else the day’s latest); the top **50** by that USD open interest. A delisted symbol has no such reading and drops out by itself.
+  - Funding: each symbol’s last settlement during the day, from its **monthly** fundingRate file (the archive has no daily funding files). A month appears after it ends, so the stored history runs to the end of last month: it lags by between a day and about a month, and the live reading covers today.
+  - Equity perpetuals (`TRADIFI_PERPETUAL`, e.g. AAPLUSDT) sit in the archive beside the alts with nothing to tell them apart; they are left out by a list taken from fapi’s exchangeInfo when fapi can be read (this box when seeding), kept in the file for the runner. A new equity perpetual listed after the last unblocked run would be counted until the next one.
+  - Coverage guard as live: a day is null unless 80 % of its candidates have both readings. Days after the last stored share in published months are read (incremental, at most two months a run, within a 12-minute budget); a day already null stays null.
+  - Differences from the live reading: the live one weighs contracts × mark price now and reads each alt’s current funding rate (premiumIndex `lastFundingRate`, the estimate for the next settlement), from exchangeInfo’s trading perpetuals. The mean (7-day) is of the archive’s readings only; the live red dot is not part of it.
+  - Backfilled from 2021-12-01 (the archive’s first alt metrics; about 600,000 files) once from the box, committed as `src/app/public/positioning.json`. The `ALL` range for chart 3 is “Since Dec 2021”.
 
 ## Data sources (no API keys)
 
@@ -72,7 +78,7 @@ Use Binance BTCUSDT perpetual daily candles (highs and lows) for detection, from
 | BTC daily candles (close, high, low) | Existing `binanceCloses('perp', '1d', …)`, which also keeps each candle’s high and low |
 | BTC OI history | Binance futures public open-interest history |
 | BTC funding history | Binance futures public funding rate history |
-| Alt symbols + OI + funding | Binance USDT-M exchangeInfo / premiumIndex / openInterest (and history endpoints as available) |
+| Alt symbols + OI + funding | Live: Binance USDT-M exchangeInfo / premiumIndex / openInterest. History: data.binance.vision daily metrics and monthly fundingRate per symbol |
 
 All fetches from the visitor’s browser when CORS allows; cache in-tab like other metrics (≈5 minutes). Cite Binance in the footnote.
 

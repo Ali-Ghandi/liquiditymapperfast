@@ -3076,7 +3076,7 @@
  "Binance BTCUSDT perpetual, daily closes (UTC); the day under way is left out. EMA from Sep 2019.": "Binance BTCUSDT sürekli vadeli, günlük kapanışlar (UTC); süren gün dışarıda. EMA Eylül 2019'dan.",
  "% from 21 EMA": "21 EMA'dan %",
  "Daily close": "Günlük kapanış",
- "Since Jan 2020": "Oca 2020'den beri",
+ "Since Dec 2021": "Ara 2021'den beri",
  "Binance funding": "Binance fonlama",
  "no answer in 60 s": "60 sn içinde yanıt yok",
  "The positioning archive (positioning.json) could not be read.": "Konumlanma arşivi (positioning.json) okunamadı.",
@@ -3093,11 +3093,10 @@
  "no readings yet": "henüz okuma yok",
  "7d mean": "7 g ort.",
  "daily reading": "günlük okuma",
- "{n} readings; daily since Nov 2026": {
-  "one": "{n} okuma; Kas 2026'dan beri günlük",
-  "other": "{n} okuma; Kas 2026'dan beri günlük"
+ "{n} daily readings": {
+  "one": "{n} günlük okuma",
+  "other": "{n} günlük okuma"
  },
- "{n} daily readings": "{n} günlük okuma",
  "Reading": "Okuma",
  "A Binance-only approximation of Cav's (ID Theory) Coinalyze top-300 charts. Contracts: Binance BTCUSDT perpetual open interest in BTC (USD open interest deflated by price), indexed; daily from Sep 2020 (data.binance.vision archive, then fapi). Funding: BTCUSDT 7-day mean × 3 × 365, annualised %. Alt share: share of USD open interest (contracts × mark price) among the top 50 Binance USDT-M alts by USD open interest whose last funding is negative, a 7-day mean of daily readings.": "Cav'ın (ID Theory) Coinalyze top-300 grafiklerine yalnızca Binance ile bir yaklaşım. Kontratlar: Binance BTCUSDT perpetual açık pozisyonu BTC cinsinden (fiyatla arındırılmış USD açık pozisyon), endeksli; Eyl 2020'den itibaren günlük (data.binance.vision arşivi, sonra fapi). Fonlama: BTCUSDT 7 günlük ortalama × 3 × 365, yıllık %. Altcoin payı: USD açık pozisyona göre en büyük 50 Binance USDT-M altcoin arasında son fonlaması negatif olanların USD açık pozisyon (kontrat × mark fiyatı) payı, günlük okumaların 7 günlük ortalaması.",
  "Durable low (Cav's rule, on daily candles): a day whose intraday low is the lowest of its 10 days and at least 15% under the prior 90-day intraday high, with no intraday low under it for the next 60 days and a daily close at least 15% above it within those 60 days; a low within 60 days of the previous one is a retest and is not counted. The red \"now\" point is not a confirmed low.": "Kalıcı dip (Cav’in kuralı, günlük mumlarla): gün içi dibi kendi 10 gününün en düşüğü olan ve önceki 90 günün gün içi zirvesinin en az %15 altında kalan, sonraki 60 gün içinde altına gün içi dip inmeyen ve bu 60 gün içinde en az %15 yukarıda bir günlük kapanış gelen gün; öncekinden 60 gün içindeki bir dip yeniden testtir ve sayılmaz. Kırmızı \"şimdi\" noktası onaylanmış bir dip değildir.",
@@ -3123,6 +3122,7 @@
   "other": "{n} okumanın ortalaması"
  },
  "Alt OI on negative funding": "Negatif fonlamadaki altcoin OI",
+ "Alt-share history: daily from {first} to {last}, {n} days, from Binance's public archive (data.binance.vision): each alt's USD open interest at the day's close and its last funding settled that day, equity perpetuals left out. The archive publishes funding a month at a time, so the history ends with last month; the red dot is the live reading (each alt's current funding rate), not part of the mean.": "Altcoin payı geçmişi: {first} ile {last} arası günlük, {n} gün, Binance’in herkese açık arşivinden (data.binance.vision): her altcoinin gün kapanışındaki USD açık pozisyonu ve o gün ödenen son fonlaması, hisse sürekli vadelileri hariç. Arşiv fonlamayı ay ay yayımlar, bu yüzden geçmiş geçen ayla biter; kırmızı nokta canlı okumadır (her altcoinin şu anki fonlaması) ve ortalamaya dahil değildir.",
  "live now: {v}%": "şimdi canlı: %{v}",
  "Binance daily closes could not be read, so only the alt share is drawn.": "Binance günlük kapanışları okunamadı, bu yüzden yalnızca altcoin payı çiziliyor.",
  "Binance daily closes could not be read; the alt share is still loading.": "Binance günlük kapanışları okunamadı; altcoin payı hâlâ yükleniyor.",

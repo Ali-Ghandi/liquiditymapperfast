@@ -3133,7 +3133,7 @@
  "Binance BTCUSDT perpetual, daily closes (UTC); the day under way is left out. EMA from Sep 2019.": "Perpétuel Binance BTCUSDT, clôtures quotidiennes (UTC) ; le jour en cours est omis. EMA depuis sept. 2019.",
  "% from 21 EMA": "% par rapport à l'EMA 21",
  "Daily close": "Clôture quotidienne",
- "Since Jan 2020": "Depuis janv. 2020",
+ "Since Dec 2021": "Depuis déc. 2021",
  "Binance funding": "Funding Binance",
  "no answer in 60 s": "pas de réponse en 60 s",
  "The positioning archive (positioning.json) could not be read.": "L’archive de positionnement (positioning.json) n’a pas pu être lue.",
@@ -3150,12 +3150,11 @@
  "no readings yet": "pas encore de relevés",
  "7d mean": "moyenne 7 j",
  "daily reading": "relevé quotidien",
- "{n} readings; daily since Nov 2026": {
-  "one": "{n} relevé ; quotidien depuis nov. 2026",
-  "many": "{n} relevés ; quotidiens depuis nov. 2026",
-  "other": "{n} relevés ; quotidiens depuis nov. 2026"
+ "{n} daily readings": {
+  "one": "{n} relevé quotidien",
+  "many": "{n} relevés quotidiens",
+  "other": "{n} relevés quotidiens"
  },
- "{n} daily readings": "{n} relevés quotidiens",
  "Reading": "Relevé",
  "A Binance-only approximation of Cav's (ID Theory) Coinalyze top-300 charts. Contracts: Binance BTCUSDT perpetual open interest in BTC (USD open interest deflated by price), indexed; daily from Sep 2020 (data.binance.vision archive, then fapi). Funding: BTCUSDT 7-day mean × 3 × 365, annualised %. Alt share: share of USD open interest (contracts × mark price) among the top 50 Binance USDT-M alts by USD open interest whose last funding is negative, a 7-day mean of daily readings.": "Une approximation Binance seule des graphiques Coinalyze top 300 de Cav (ID Theory). Contrats : open interest du perpétuel BTCUSDT de Binance en BTC (open interest en USD déflaté par le prix), indexé ; quotidien depuis sept. 2020 (archive data.binance.vision, puis fapi). Funding : moyenne 7 jours BTCUSDT × 3 × 365, % annualisé. Part des alts : part de l’open interest en USD (contrats × prix mark) parmi les 50 plus grosses alts USDT-M de Binance par open interest en USD dont le dernier funding est négatif, moyenne 7 jours des relevés quotidiens.",
  "Durable low (Cav's rule, on daily candles): a day whose intraday low is the lowest of its 10 days and at least 15% under the prior 90-day intraday high, with no intraday low under it for the next 60 days and a daily close at least 15% above it within those 60 days; a low within 60 days of the previous one is a retest and is not counted. The red \"now\" point is not a confirmed low.": "Plus bas durable (règle de Cav, sur bougies quotidiennes) : un jour dont le plus bas intrajournalier est le plus bas de ses 10 jours et au moins 15 % sous le plus haut intrajournalier des 90 jours précédents, sans plus bas intrajournalier en dessous dans les 60 jours suivants et avec une clôture quotidienne d’au moins 15 % au-dessus dans ces 60 jours ; un plus bas à moins de 60 jours du précédent est un retest et n’est pas compté. Le point rouge « maintenant » n’est pas un plus bas confirmé.",
@@ -3182,6 +3181,7 @@
   "other": "Moyenne de {n} relevés"
  },
  "Alt OI on negative funding": "OI des alts en funding négatif",
+ "Alt-share history: daily from {first} to {last}, {n} days, from Binance's public archive (data.binance.vision): each alt's USD open interest at the day's close and its last funding settled that day, equity perpetuals left out. The archive publishes funding a month at a time, so the history ends with last month; the red dot is the live reading (each alt's current funding rate), not part of the mean.": "Historique de la part des alts : quotidien de {first} à {last}, {n} jours, tiré de l’archive publique de Binance (data.binance.vision) : l’intérêt ouvert en USD de chaque alt à la clôture du jour et son dernier funding réglé ce jour-là, perpétuels d’actions exclus. L’archive publie le funding mois par mois : l’historique s’arrête au mois dernier ; le point rouge est le relevé en direct (funding actuel de chaque alt), hors de la moyenne.",
  "live now: {v}%": "en direct : {v}%",
  "Binance daily closes could not be read, so only the alt share is drawn.": "Les clôtures quotidiennes de Binance n’ont pas pu être lues : seule la part des alts est tracée.",
  "Binance daily closes could not be read; the alt share is still loading.": "Les clôtures quotidiennes de Binance n’ont pas pu être lues ; la part des alts est encore en chargement.",

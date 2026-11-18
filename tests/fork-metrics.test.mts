@@ -6,8 +6,8 @@ import { ALL_START, DEFAULT_RANGE, METRIC_KEY, METRIC_TABS, RANGES, SOURCE_START
 import { dayTicks, niceTicks, timeTicks } from '../src/app/metrics/ticks.ts';
 import { nearest } from '../src/app/metrics/plot.ts';
 import {
-  CAV_LOW_MONTHS, CAV_SAMPLE_START, altCandidates, altNegSeries, altNegShare, contractsIndex, contractsOnGrid, dailyOiFromMetrics, durableLows, funding7dAnnualised, fundingOnGrid,
-  lowEventPoints, mergeOiByDay, monthsMatched, nowComparison, nowLow, parsePositioning, pctChange, pointChange, usdtPerpAlts, type PositioningFile,
+  ALT_ARCHIVE_DEF, CAV_LOW_MONTHS, CAV_SAMPLE_START, altArchiveDaysWanted, altCandidates, altNegShareFromArchive, altNegSeries, altNegShare, contractsIndex, contractsOnGrid, dailyOiFromMetrics, durableLows, funding7dAnnualised, fundingOnGrid,
+  lastFundingBefore, lowEventPoints, mergeOiByDay, metricsUsdOiAtClose, nonCryptoUsdtPerps, monthsMatched, nowComparison, nowLow, parsePositioning, pctChange, pointChange, usdtPerpAlts, type PositioningFile,
 } from '../src/app/metrics/positioning.ts';
 
 const close = (a: number, b: number, eps: number, what = ''): void => assert.ok(Math.abs(a - b) <= eps, `${what} ${a} is not within ${eps} of ${b}`);
@@ -237,8 +237,8 @@ test('a browser that never chose a metric tab is on the chart with each tab\'s d
   assert.deepEqual(METRIC_TABS, ['chart', 'vol', 'gap', 'term', 'puts', 'ema', 'pos']);
   assert.deepEqual(RANGES.pos, ['1Y', '2Y', 'ALL']);
   assert.equal(DEFAULT_RANGE.pos, 'ALL');
-  assert.equal(ALL_START.pos, Date.UTC(2020, 0, 1));
-  assert.equal(rangeStart('pos', 'ALL', Date.now()), Date.UTC(2020, 0, 1));
+  assert.equal(ALL_START.pos, Date.UTC(2021, 11, 1));
+  assert.equal(rangeStart('pos', 'ALL', Date.now()), Date.UTC(2021, 11, 1));
   assert.equal(tabLabel('pos'), 'Positioning');
   assert.equal(tabTip('pos'), 'BTC open interest and funding into swing lows, and the share of Binance alt perps on negative funding.');
   for (const [tab, keys] of Object.entries(RANGES)) assert.ok((keys as readonly string[]).includes(DEFAULT_RANGE[tab as keyof typeof DEFAULT_RANGE]));
@@ -409,6 +409,93 @@ test('the positioning file: parsePositioning round-trips and rejects holes, a wr
   assert.ok(Number.isNaN(nanRow.days[0]![2]!), 'NaN funding7d');
 });
 
+test('the positioning file keeps its alt-share definition and its list of equity perpetuals left out', () => {
+  const file = { v: 1 as const, source: 's', builtAt: 1, from: 100, through: 100, days: [[100, 1, 2, 3]] as [number, number, number, number][], altDef: ALT_ARCHIVE_DEF, altExclude: ['AAPLUSDT', 'TSLAUSDT'] };
+  assert.deepEqual(parsePositioning(JSON.parse(JSON.stringify(file))), file);
+  const plain = parsePositioning({ v: 1, source: 's', builtAt: 1, from: 100, through: 100, days: [[100, 1, 2, 3]] });
+  assert.ok(plain);
+  assert.equal(plain.altDef, undefined);
+  assert.deepEqual(plain.altExclude, undefined);
+  // A list that is not strings is dropped, not the file.
+  assert.equal(parsePositioning({ ...file, altExclude: [1, 'X'] })?.altExclude, undefined);
+});
+
+/** ---- the alt share from data.binance.vision ------------------------------------------------------------------------------------------ */
+
+const METRICS_HEAD = 'create_time,symbol,sum_open_interest,sum_open_interest_value,count_toptrader_long_short_ratio,sum_toptrader_long_short_ratio,count_long_short_ratio,sum_taker_long_short_vol_ratio';
+
+test('metricsUsdOiAtClose: the day\'s 23:55 USD open interest (sum_open_interest_value), else its latest real reading', () => {
+  const d = Math.floor(Date.UTC(2026, 10, 17) / DAY_MS);
+  const rows = (lines: string[]): string => [METRICS_HEAD, ...lines].join('\n');
+  const full = rows([
+    '2026-11-17 00:00:00,ETHUSDT,2284265.26,4156822442.76,1,1,1,1',
+    '2026-11-17 23:55:00,ETHUSDT,2347501.46,4292593813.99,1,1,1,1',
+    '2026-11-17 23:10:00,ETHUSDT,2347000.00,4290000000.00,1,1,1,1',
+  ]);
+  close(metricsUsdOiAtClose(full, d), 4292593813.99, 1e-3);
+  // No 23:55 row (or a zero placeholder there): the latest stamped row of the day with a reading.
+  const late = rows(['2026-11-17 12:00:00,X,1,500,1,1,1,1', '2026-11-17 23:55:00,X,0E-8,0E-8,,,,', '2026-11-17 22:00:00,X,2,900,1,1,1,1', '2026-11-17 06:00:00,X,3,700,1,1,1,1']);
+  close(metricsUsdOiAtClose(late, d), 900, 1e-9);
+  // Only placeholders, other days' rows, or nothing: NaN.
+  assert.ok(Number.isNaN(metricsUsdOiAtClose(rows(['2026-11-17 23:55:00,X,0E-8,0E-16,,,,', '2026-11-16 23:55:00,X,5,5,1,1,1,1']), d)));
+  assert.ok(Number.isNaN(metricsUsdOiAtClose(METRICS_HEAD, d)));
+});
+
+test('lastFundingBefore: the rate of the last settlement before a time, from a monthly fundingRate file', () => {
+  const csv = ['calc_time,funding_interval_hours,last_funding_rate', '1790812800001,8,0.00005694', '1790841600005,8,-0.00007243', '1790870400002,8,0.0001'].join('\n');
+  close(lastFundingBefore(csv, 1790870400000), -0.00007243, 1e-12);
+  close(lastFundingBefore(csv, 1790870400003), 0.0001, 1e-12);
+  assert.ok(Number.isNaN(lastFundingBefore(csv, 1790812800000)), 'nothing settled before');
+  assert.ok(Number.isNaN(lastFundingBefore('calc_time,funding_interval_hours,last_funding_rate', 2e12)));
+});
+
+test('altNegShareFromArchive: top alts by USD open interest, BTCUSDT and the left-out symbols excluded, null under 80% read', () => {
+  const rows = [
+    { symbol: 'BTCUSDT', usd: 9e12, rate: -1 },
+    { symbol: 'AAPLUSDT', usd: 8e12, rate: -1 },
+    { symbol: 'ETHUSDT', usd: 3e9, rate: -0.0001 },
+    { symbol: 'SOLUSDT', usd: 1e9, rate: 0.0001 },
+    { symbol: 'XRPUSDT', usd: 5e8, rate: -0.0002 },
+    { symbol: 'DOGEUSDT', usd: 1e8, rate: 0.0001 },
+    { symbol: 'DEADUSDT', usd: NaN, rate: 0.0001 }, // no reading at the day's close: not trading, not a candidate
+  ];
+  const exclude = new Set(['AAPLUSDT']);
+  close(altNegShareFromArchive(rows, exclude, 3)!, 100 * 3.5e9 / 4.5e9, 1e-9, 'top 3 of ETH, SOL, XRP, DOGE');
+  close(altNegShareFromArchive(rows, exclude, 50)!, 100 * 3.5e9 / 4.6e9, 1e-9);
+  // A candidate without funding is unread: 3 of 4 read is under 80 %.
+  const unread = rows.map(r => (r.symbol === 'DOGEUSDT' ? { ...r, rate: NaN } : r));
+  assert.equal(altNegShareFromArchive(unread, exclude, 50), null);
+  assert.equal(altNegShareFromArchive([], exclude, 50), null);
+});
+
+test('nonCryptoUsdtPerps: the USDT contracts exchangeInfo lists that are not crypto perpetuals (equity "TRADIFI" perpetuals), not dated futures', () => {
+  const info = { symbols: [
+    { symbol: 'ETHUSDT', contractType: 'PERPETUAL', quoteAsset: 'USDT', status: 'TRADING' },
+    { symbol: 'AAPLUSDT', contractType: 'TRADIFI_PERPETUAL', quoteAsset: 'USDT', status: 'TRADING' },
+    { symbol: 'OLDUSDT', contractType: 'TRADIFI_PERPETUAL', quoteAsset: 'USDT', status: 'SETTLING' },
+    { symbol: 'BTCUSDT_261225', contractType: 'CURRENT_QUARTER', quoteAsset: 'USDT', status: 'TRADING' },
+    { symbol: 'ETHUSDC', contractType: 'TRADIFI_PERPETUAL', quoteAsset: 'USDC', status: 'TRADING' },
+  ] };
+  assert.deepEqual([...nonCryptoUsdtPerps(info)].sort(), ['AAPLUSDT', 'OLDUSDT']);
+  assert.throws(() => nonCryptoUsdtPerps({}));
+});
+
+test('altArchiveDaysWanted: the days after the last stored alt share, from the archive\'s first, in months whose funding is published', () => {
+  const day = (y: number, m: number, d: number): number => Math.floor(Date.UTC(y, m - 1, d) / DAY_MS);
+  const start = day(2021, 12, 1), now = Date.UTC(2026, 10, 19, 1);
+  const rows = (from: number, to: number, alt: (d: number) => number): [number, number, number, number][] => Array.from({ length: to - from + 1 }, (_, i) => [from + i, 1, 1, alt(from + i)]);
+  // Nothing stored: from the archive's first day to the end of last month (October 2026), not November's days.
+  const empty = altArchiveDaysWanted(rows(day(2021, 11, 25), day(2026, 11, 17), () => NaN), start, now);
+  assert.equal(empty[0], start);
+  assert.equal(empty[empty.length - 1], day(2026, 10, 31));
+  assert.equal(empty.length, day(2026, 10, 31) - start + 1);
+  // Stored to 2026-09-30, with an old hole (null for good): only October.
+  const held = altArchiveDaysWanted(rows(day(2021, 11, 25), day(2026, 11, 17), d => (d <= day(2026, 9, 30) && d !== day(2023, 5, 5) ? 10 : NaN)), start, now);
+  assert.deepEqual([held[0], held[held.length - 1], held.length], [day(2026, 10, 1), day(2026, 10, 31), 31]);
+  // Never past the file's last day.
+  assert.equal(altArchiveDaysWanted(rows(day(2021, 11, 25), day(2022, 1, 10), () => NaN), start, now).at(-1), day(2022, 1, 10));
+});
+
 test('lowEventPoints: a confirmed low with contracts up 9% and funding +5.5 points', () => {
   const t0 = Date.UTC(2024, 0, 1);
   const dayTimes = Array.from({ length: 40 }, (_, i) => t0 + i * DAY_MS);
@@ -541,14 +628,15 @@ test('fundingOnGrid: live 7-day funding where it reads, the archive\'s funding7d
   assert.ok(Number.isNaN(archiveOnly[3]!), 'neither');
 });
 
-test('altNegSeries: archive readings plus a live reading on today, a 7-day trailing mean of the readings held, and gaps kept', () => {
+test('altNegSeries: archive readings plus a live reading on today, a 7-day trailing mean of the archive readings (not the live one), and gaps kept', () => {
   const d0 = 20_000;
   const file = posFile(d0, [[1, 1, 10], [1, 1, NaN], [1, 1, 20], [1, 1, NaN]]);
   const s = altNegSeries(file, { at: (d0 + 5) * DAY_MS + 3 * HOUR_MS, value: 30 });
   assert.deepEqual(Array.from(s.time), [0, 1, 2, 3, 4, 5].map(k => (d0 + k) * DAY_MS));
   assert.deepEqual(Array.from(s.raw).map(v => (Number.isNaN(v) ? null : v)), [10, null, 20, null, null, 30]);
-  assert.deepEqual(Array.from(s.n7), [1, 1, 2, 2, 2, 3], 'readings in each 7-day window: the mean is "mean of n readings" until 7');
-  close(s.avg7[0]!, 10, 1e-9); close(s.avg7[1]!, 10, 1e-9); close(s.avg7[2]!, 15, 1e-9); close(s.avg7[5]!, 20, 1e-9);
+  // The live reading is measured another way (current funding, contracts × mark now), so the mean is of the archive's readings only.
+  assert.deepEqual(Array.from(s.n7), [1, 1, 2, 2, 2, 2], 'archive readings in each 7-day window: the mean is "mean of n readings" until 7');
+  close(s.avg7[0]!, 10, 1e-9); close(s.avg7[1]!, 10, 1e-9); close(s.avg7[2]!, 15, 1e-9); close(s.avg7[5]!, 15, 1e-9);
   assert.equal(s.live, true);
   const single = altNegSeries(posFile(d0, [[1, 1, NaN], [1, 1, 11.7]]), null);
   assert.deepEqual(Array.from(single.time), [(d0 + 1) * DAY_MS], 'one archive reading: one point');
@@ -556,6 +644,8 @@ test('altNegSeries: archive readings plus a live reading on today, a 7-day trail
   assert.equal(single.live, false);
   const live = altNegSeries(posFile(d0, [[1, 1, 12]]), { at: d0 * DAY_MS + HOUR_MS, value: 14 });
   assert.deepEqual(Array.from(live.raw), [14], 'the live reading replaces the archive on the same day');
+  assert.ok(Number.isNaN(live.avg7[0]!), 'and has no mean of its own');
+  assert.equal(live.n7[0], 0);
   assert.equal(altNegSeries(null, null).time.length, 0);
   // A reading every 8 days leaves a day with none in its 7: NaN, so the line breaks there.
   const sparse = altNegSeries(posFile(d0, [[1, 1, 10], [1, 1, NaN], [1, 1, NaN], [1, 1, NaN], [1, 1, NaN], [1, 1, NaN], [1, 1, NaN], [1, 1, NaN], [1, 1, 20]]), null);
@@ -569,10 +659,10 @@ test('nowLow: the pending (unconfirmed) low is now; with none pending, the last 
   assert.deepEqual(nowLow([], 9), { lows: [{ t: 9, confirmed: false }], pending: false });
 });
 
-test('rangeLabel: Positioning\'s longest range says where it begins (Jan 2020)', () => {
-  assert.equal(rangeLabel('pos', 'ALL'), 'Since Jan 2020');
+test('rangeLabel: Positioning\'s longest range says where it begins (Dec 2021, the alt-share archive)', () => {
+  assert.equal(rangeLabel('pos', 'ALL'), 'Since Dec 2021'); // chart C's archive (alt metrics) begins 2021-12-01
   assert.equal(rangeLabel('gap', 'ALL'), 'Since Apr 2021');
-  assert.equal(ALL_START.pos, Date.UTC(2020, 0, 1));
+  assert.equal(ALL_START.pos, Date.UTC(2021, 11, 1));
 });
 
 test('nowComparison: counts lows that beat now, and leaves the contracts count out when now has no open interest', () => {

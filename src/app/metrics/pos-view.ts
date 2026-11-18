@@ -130,19 +130,21 @@ function drawAlt(host: PosHost, chart: Chart, c: Palette, s: AltNegSeries, start
     return;
   }
   const last = s.time[n - 1]!, span = last - s.time[0]!;
-  // History accrues one reading a day from Nov 2026: until it is a month long, show the last month so one point is not a sliver (the
-  // range chips are idle until then).
+  // The history is read from Binance's archive back to Dec 2021; without it (the file could not be read) only a reading or two shows:
+  // then the last month is shown so one point is not a sliver, and the range chips are idle.
   host.rangesIdle(span < 30 * DAY_MS);
   const min = span < 30 * DAY_MS ? last - 34 * DAY_MS : Math.max(start, s.time[0]! - DAY_MS);
   let i = n - 1; while (i > 0 && !Number.isFinite(s.avg7[i]!)) i--;
-  const finite = Array.from(s.raw).filter(Number.isFinite), readings = finite.length;
-  const liveAt = s.live ? n - 1 : -1;
+  const finite = Array.from(s.raw).filter(Number.isFinite);
+  const liveAt = s.live ? n - 1 : -1, readings = finite.length - (liveAt >= 0 ? 1 : 0);
+  const hasMean = Number.isFinite(s.avg7[i]!);
   // The archive's readings in grey; the live one is the red dot.
   const daily = Float64Array.from(s.raw, (v, k) => (k === liveAt ? NaN : v));
   chart.set({
     x: { kind: 'time', min, max: last + 2 * DAY_MS },
     legend: [
-      { color: c.purple, text: `${meanName(s.n7[i]!)}: ${f1(s.avg7[i]!)}%` },
+      // The mean is of the archive's readings, which end weeks before the live one: its legend says on which day.
+      ...(hasMean ? [{ color: c.purple, text: `${meanName(s.n7[i]!)} (${dayLabel(s.time[i]!)}): ${f1(s.avg7[i]!)}%` }] : []),
       { color: c.muted, text: t('daily reading') },
       ...(liveAt >= 0 ? [{ color: c.flag, text: t('live now: {v}%', { v: f1(s.raw[liveAt]!) }) }] : liveNote ? [{ color: c.muted, text: liveNote }] : []),
     ],
@@ -153,14 +155,14 @@ function drawAlt(host: PosHost, chart: Chart, c: Palette, s: AltNegSeries, start
       { kind: 'scatter', x: s.time, y: daily, color: () => c.muted, r: 5 },
       ...(readings < 8 ? [{ kind: 'scatter' as const, x: s.time, y: s.avg7, color: () => c.purple, r: 2.2 }] : []),
       ...(liveAt >= 0 ? [{ kind: 'dot' as const, x: s.time[liveAt]!, y: s.raw[liveAt]!, color: c.flag, label: `${f1(s.raw[liveAt]!)}% ${t('live')}` }] : []),
-    ], title: `${base} · ${readings < 30 ? tn(readings, '{n} reading; daily since Nov 2026', '{n} readings; daily since Nov 2026') : t('{n} daily readings', { n: readings })}` }],
+    ], title: `${base} · ${tn(readings, '{n} daily reading', '{n} daily readings')}` }],
     snap: s.time,
     readout: x => {
       const k = idx(s.time, x);
       return k < 0 ? null : [
         `${dateLabel(s.time[k]!)}${k === liveAt ? ` (${t('live')})` : ''}`,
         `${t('Reading')} ${Number.isFinite(s.raw[k]!) ? `${f1(s.raw[k]!)}%` : '–'}`,
-        `${meanName(s.n7[k]!)} ${Number.isFinite(s.avg7[k]!) ? `${f1(s.avg7[k]!)}%` : '–'}`,
+        ...(s.n7[k] ? [`${meanName(s.n7[k]!)} ${f1(s.avg7[k]!)}%`] : []),
       ];
     },
   }, c);
@@ -192,11 +194,20 @@ function headline(d: PosData, alt: 'drawn' | 'loading' | 'failed'): string {
   return `${head} ${tail}`;
 }
 
+/** Where chart C's history comes from and how far it runs (the archive publishes funding a month at a time). */
+function altHistoryNote(file: PositioningFile | null): string[] {
+  const held = (file?.days ?? []).filter(r => Number.isFinite(r[3]));
+  if (!held.length) return [];
+  return [t('Alt-share history: daily from {first} to {last}, {n} days, from Binance\'s public archive (data.binance.vision): each alt\'s USD open interest at the day\'s close and its last funding settled that day, equity perpetuals left out. The archive publishes funding a month at a time, so the history ends with last month; the red dot is the live reading (each alt\'s current funding rate), not part of the mean.',
+    { first: dateLabel(held[0]![0] * DAY_MS), last: dateLabel(held[held.length - 1]![0] * DAY_MS), n: held.length })];
+}
+
 function footnote(d: PosData, extra: string[]): string {
   const withOi = d.points.filter(p => Number.isFinite(p.oiPct)).length, fromCav = d.points.filter(p => p.t >= CAV_SAMPLE_START).map(p => p.t);
   return [
     t('A Binance-only approximation of Cav\'s (ID Theory) Coinalyze top-300 charts. Contracts: Binance BTCUSDT perpetual open interest in BTC (USD open interest deflated by price), indexed; daily from Sep 2020 (data.binance.vision archive, then fapi). Funding: BTCUSDT 7-day mean × 3 × 365, annualised %. Alt share: share of USD open interest (contracts × mark price) among the top 50 Binance USDT-M alts by USD open interest whose last funding is negative, a 7-day mean of daily readings.'),
     t('Durable low (Cav\'s rule, on daily candles): a day whose intraday low is the lowest of its 10 days and at least 15% under the prior 90-day intraday high, with no intraday low under it for the next 60 days and a daily close at least 15% above it within those 60 days; a low within 60 days of the previous one is a retest and is not counted. The red "now" point is not a confirmed low.'),
+    ...altHistoryNote(d.file),
     ...(d.points.length ? [t('Sample: lows here run from {first} (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding. From Cav\'s sample start (Aug 2022) there are {k} here against his 11, and {j} of his 11 fall in the same month as one here. He reads Coinalyze\'s aggregated candles and this reads Binance\'s BTCUSDT perpetual, so a low can differ by a day or show on one side only.', { first: dateLabel(d.points[0]!.t), n: withOi, m: d.points.length, k: fromCav.length, j: monthsMatched(fromCav, CAV_LOW_MONTHS) })] : []),
     ...d.notes, ...extra,
   ].join(' ');

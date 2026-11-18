@@ -3179,7 +3179,7 @@
  "Binance BTCUSDT perpetual, daily closes (UTC); the day under way is left out. EMA from Sep 2019.": "Безстроковий BTCUSDT на Binance, денні закриття (UTC); поточний день не враховується. EMA з вер. 2019.",
  "% from 21 EMA": "% від EMA 21",
  "Daily close": "Денне закриття",
- "Since Jan 2020": "З січ 2020",
+ "Since Dec 2021": "З груд 2021",
  "Binance funding": "Фандинг Binance",
  "no answer in 60 s": "немає відповіді за 60 с",
  "The positioning archive (positioning.json) could not be read.": "Не вдалося прочитати архів позиціонування (positioning.json).",
@@ -3196,13 +3196,12 @@
  "no readings yet": "ще немає даних",
  "7d mean": "середнє 7 д",
  "daily reading": "денне значення",
- "{n} readings; daily since Nov 2026": {
-  "one": "{n} значення; щодня з лист 2026",
-  "few": "{n} значення; щодня з лист 2026",
-  "many": "{n} значень; щодня з лист 2026",
-  "other": "{n} значення; щодня з лист 2026"
+ "{n} daily readings": {
+  "one": "{n} денне значення",
+  "few": "{n} денні значення",
+  "many": "{n} денних значень",
+  "other": "{n} денного значення"
  },
- "{n} daily readings": "{n} денних значень",
  "Reading": "Значення",
  "A Binance-only approximation of Cav's (ID Theory) Coinalyze top-300 charts. Contracts: Binance BTCUSDT perpetual open interest in BTC (USD open interest deflated by price), indexed; daily from Sep 2020 (data.binance.vision archive, then fapi). Funding: BTCUSDT 7-day mean × 3 × 365, annualised %. Alt share: share of USD open interest (contracts × mark price) among the top 50 Binance USDT-M alts by USD open interest whose last funding is negative, a 7-day mean of daily readings.": "Наближення лише за Binance до графіків Cav (ID Theory) за топ-300 Coinalyze. Контракти: відкритий інтерес безстрокового BTCUSDT на Binance у BTC (відкритий інтерес у USD, очищений від ціни), індекс; щодня з вер 2020 (архів data.binance.vision, потім fapi). Фандинг: середнє за 7 днів BTCUSDT × 3 × 365, % річних. Частка альтів: частка відкритого інтересу в USD (контракти × mark-ціна) серед 50 найбільших альтів USDT-M на Binance за відкритим інтересом у USD, у яких останній фандинг від’ємний, середнє за 7 днів денних значень.",
  "Durable low (Cav's rule, on daily candles): a day whose intraday low is the lowest of its 10 days and at least 15% under the prior 90-day intraday high, with no intraday low under it for the next 60 days and a daily close at least 15% above it within those 60 days; a low within 60 days of the previous one is a retest and is not counted. The red \"now\" point is not a confirmed low.": "Стійкий мінімум (правило Cav, за денними свічками): день, чий внутрішньоденний мінімум — найнижчий за його 10 днів і щонайменше на 15% нижчий за внутрішньоденний максимум попередніх 90 днів, без внутрішньоденного мінімуму нижче нього в наступні 60 днів і з денним закриттям щонайменше на 15% вище в межах цих 60 днів; мінімум у межах 60 днів від попереднього — ретест, він не рахується. Червона точка «зараз» — не підтверджений мінімум.",
@@ -3230,6 +3229,7 @@
   "other": "Середнє з {n} значень"
  },
  "Alt OI on negative funding": "OI альтів з від’ємним фандингом",
+ "Alt-share history: daily from {first} to {last}, {n} days, from Binance's public archive (data.binance.vision): each alt's USD open interest at the day's close and its last funding settled that day, equity perpetuals left out. The archive publishes funding a month at a time, so the history ends with last month; the red dot is the live reading (each alt's current funding rate), not part of the mean.": "Історія частки альтів: щодня з {first} по {last}, {n} дн., з публічного архіву Binance (data.binance.vision): відкритий інтерес кожного альта в USD на закриття дня і його останній фандинг, розрахований цього дня, без безстрокових контрактів на акції. Архів публікує фандинг помісячно, тож історія закінчується минулим місяцем; червона точка — живе значення (поточний фандинг кожного альта), до середнього не входить.",
  "live now: {v}%": "зараз наживо: {v}%",
  "Binance daily closes could not be read, so only the alt share is drawn.": "Не вдалося прочитати денні закриття Binance, тож показано лише частку альтів.",
  "Binance daily closes could not be read; the alt share is still loading.": "Не вдалося прочитати денні закриття Binance; частка альтів ще завантажується.",

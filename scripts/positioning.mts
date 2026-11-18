@@ -13,26 +13,34 @@
 // interest at 5-minute steps per day from 2020-09-01 (each day's file appears the next morning, UTC; its 23:55 reading is the next
 // day's opening one, so yesterday's is there when the workflow runs) and funding per month (a month's file appears after it ends, so
 // without fapi the file stops at the end of last month until then). Funding is read from fapi, and from the archive when fapi cannot be read; open interest from fapi for
-// its month and from the archive before that (or when fapi cannot be read). The alt share is a live fapi reading only.
+// its month and from the archive before that (or when fapi cannot be read). The alt share is read from the archive too (below).
+//
+// The alt share (ALT_ARCHIVE_DEF). For each day from 2021-12-01 (the archive's first alt metrics), every USDT-M symbol with a daily
+// metrics file that day (listed from the archive's bucket) gives its USD open interest at the day's close, and its monthly fundingRate
+// file its last funding settled that day; the share is altNegShareFromArchive over the top 50 by USD open interest, BTCUSDT and the
+// equity perpetuals left out (their list, altExclude, comes from fapi's exchangeInfo when fapi can be read, else from the previous file).
+// Funding is published a month at a time, after the month ends, so the alt share runs to the end of last month; each run reads the days
+// after the last stored share in published months, at most --alt-months months (default 2) and stops starting new ones after
+// --alt-minutes (default 12). A day whose symbols were not 80 % read is null and is not read again. The first run (no stored share)
+// backfills from 2021-12-01: run it once with --alt-months 99 where there is time (about 45 minutes, 600,000 files).
 //
 // --previous is the file in use (a file or an address) and --fallback stands in when it cannot be read: its days are kept, its days
 // without open interest are looked up again, and the days after its last are added, up to yesterday (UTC). The file ends at the last
 // day both funding and open interest reached, so a day that has not been published yet is never written empty, and before the first
 // new day whose funding or open interest could not be read (an error after retries); a day before that which a source lacks for good
-// (no reading in the archive, e.g. 2021-02-20, or only zero placeholders) is null. A stored open interest of 0 or less is looked up again. The alt share is taken at build time (shortly after midnight UTC) and stored on yesterday,
-// when yesterday is in the file and has none; without it (fapi refused) the day is still added, with null. Missing values are written
+// (no reading in the archive, e.g. 2021-02-20, or only zero placeholders) is null. A stored open interest of 0 or less is looked up again. Missing values are written
 // as null (JSON has no NaN).
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { DAY_MS } from '../src/app/metrics/math.ts';
-import { altCandidates, altNegShare, dailyOiFromMetrics, funding7dAnnualised, parsePositioning, usdtPerpAlts, type PositioningFile } from '../src/app/metrics/positioning.ts';
+import { ALT_ARCHIVE_DEF, altArchiveDaysWanted, altNegShareFromArchive, dailyOiFromMetrics, funding7dAnnualised, lastFundingBefore, metricsUsdOiAtClose, nonCryptoUsdtPerps, parsePositioning, type PositioningFile } from '../src/app/metrics/positioning.ts';
 
 const arg = (name: string): string | undefined => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : undefined; };
 const FAPI = 'https://fapi.binance.com';
 const ARCHIVE = 'https://data.binance.vision/data/futures/um';
 const SOURCE = 'Binance USDT-M (fapi.binance.com, data.binance.vision): BTCUSDT open interest at each day\u2019s open (the 23:55 UTC reading before it) and 7-day funding; '
-  + 'alt share = share of USD open interest (contracts x mark price) among the top 50 alts by USD open interest with negative last funding, read live just after the day ends and stored on that day '
+  + 'alt share = share of USD open interest among the top 50 USDT-M alts by USD open interest (equity perpetuals left out) whose last funding settled that day was negative, from data.binance.vision daily metrics (USD open interest at the day close) and monthly funding files, so it runs to the end of last month '
   + '(approximates Coinalyze top-300)';
 /** Before Binance's first BTCUSDT funding (2019-09-10). */
 const FUNDING_START = Date.UTC(2019, 8, 1);
@@ -41,6 +49,9 @@ const OI_ARCHIVE_START = Date.UTC(2020, 8, 1);
 /** The first day whose open interest the archive gives (from the reading at the end of the day before). */
 const OI_FIRST_DAY = Math.floor(OI_ARCHIVE_START / DAY_MS) + 1;
 const TOP_ALTS = 50;
+/** The archive's first day of alt metrics (daily metrics files for symbols other than BTCUSDT begin 2021-12-01). */
+const ALT_START = Math.floor(Date.UTC(2021, 11, 1) / DAY_MS);
+const BUCKET = 'https://s3-ap-northeast-1.amazonaws.com/data.binance.vision';
 const day = (ms: number): number => Math.floor(ms / DAY_MS);
 const iso = (d: number): string => new Date(d * DAY_MS).toISOString().slice(0, 10);
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms));
@@ -197,34 +208,114 @@ async function oiFromArchive(d: number): Promise<number | null> {
   return dailyOiFromMetrics(before, await archive(`daily/metrics/BTCUSDT/BTCUSDT-metrics-${iso(d)}.zip`), d);
 }
 
-/** Now: the percent of USD open interest among the top alts (`altNegShare`) whose last funding is negative, or null. */
-async function readAltShare(): Promise<{ share: number | null; alts: number; read: number }> {
-  const [info, premium] = await Promise.all([binance('/fapi/v1/exchangeInfo'), binance('/fapi/v1/premiumIndex')]);
-  const alts = usdtPerpAlts(info);
-  const candidates = altCandidates(premium, alts);
-  // Every alt's open interest, at most 8 at a time with a short pause each (well under Binance's weight limit); a failed one is left
-  // out, and the share is null unless 80 % of them were read (altNegShare).
-  const readings = await pool(candidates.map(({ symbol }) => async () => {
-    await sleep(50);
-    try {
-      return [symbol, Number((await binance(`/fapi/v1/openInterest?symbol=${symbol}`, 3) as { openInterest?: unknown } | null)?.openInterest)] as [string, number];
-    } catch { return [symbol, NaN] as [string, number]; }
-  }), 8);
-  const oi = new Map(readings);
-  return { share: altNegShare(premium, alts, oi, TOP_ALTS), alts: candidates.length, read: readings.filter(([, v]) => v > 0).length };
+/** The keys under a prefix of the archive's bucket (S3 list, 1,000 a page). */
+async function listKeys(prefix: string, delimiter = false): Promise<string[]> {
+  const out: string[] = [];
+  let marker = '';
+  for (;;) {
+    let text = '';
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const response = await fetch(`${BUCKET}?prefix=${encodeURIComponent(prefix)}${delimiter ? '&delimiter=/' : ''}&max-keys=1000${marker ? `&marker=${encodeURIComponent(marker)}` : ''}`, { signal: AbortSignal.timeout(60_000) });
+        if (!response.ok) throw new Error(`HTTP ${response.status} listing ${prefix}`);
+        text = await response.text();
+        break;
+      } catch (error) { if (attempt >= 4) throw error; await sleep(1000 * 2 ** attempt); }
+    }
+    const keys = [...text.matchAll(delimiter ? /<Prefix>([^<]+)<\/Prefix>/g : /<Key>([^<]+)<\/Key>/g)].map(m => m[1]!).filter(k => k !== prefix);
+    out.push(...keys);
+    if (!text.includes('<IsTruncated>true</IsTruncated>') || !keys.length) return out;
+    marker = text.match(/<NextMarker>([^<]+)<\/NextMarker>/)?.[1] ?? keys[keys.length - 1]!;
+  }
+}
+
+/** The days (UTC day numbers) of each USDT symbol's daily metrics files from `fromDay`, BTCUSDT apart. */
+async function metricsDays(fromDay: number, toDay: number): Promise<Map<string, Set<number>>> {
+  const symbols = (await listKeys('data/futures/um/daily/metrics/', true)).map(p => p.split('/')[5]!).filter(s => s.endsWith('USDT') && s !== 'BTCUSDT');
+  const out = new Map<string, Set<number>>();
+  const fromMonth = iso(fromDay).slice(0, 7);
+  await pool(symbols.map(symbol => async () => {
+    const keys = await listKeys(`data/futures/um/daily/metrics/${symbol}/`);
+    const days = new Set<number>();
+    for (const key of keys) {
+      const m = key.match(/-(\d{4}-\d{2}-\d{2})\.zip$/);
+      if (!m || m[1]!.slice(0, 7) < fromMonth) continue;
+      const d = day(Date.parse(m[1]!));
+      if (d >= fromDay && d <= toDay) days.add(d);
+    }
+    if (days.size) out.set(symbol, days);
+  }), 32);
+  return out;
+}
+
+/**
+ * The alt share (ALT_ARCHIVE_DEF) for `wanted` days, month by month, into `held`: at most `months` months, none started after
+ * `budgetMs`. A month where no day could be read (its funding not published yet) ends the run. Returns the days given a share.
+ */
+async function altFromArchive(wanted: number[], exclude: ReadonlySet<string>, months: number, budgetMs: number): Promise<number> {
+  const byMonth = new Map<string, number[]>();
+  for (const d of wanted) { const m = iso(d).slice(0, 7); byMonth.set(m, [...(byMonth.get(m) ?? []), d]); }
+  const chosen = [...byMonth.keys()].slice(0, Math.max(0, months));
+  if (!chosen.length) return 0;
+  const startedAt = Date.now();
+  const files = await metricsDays(byMonth.get(chosen[0]!)![0]!, byMonth.get(chosen[chosen.length - 1]!)!.at(-1)!);
+  console.log(`alt share from data.binance.vision: ${chosen.length} months (${chosen[0]} to ${chosen[chosen.length - 1]}), ${files.size} USDT symbols listed, ${exclude.size} left out`);
+  let stored = 0;
+  for (const month of chosen) {
+    if (Date.now() - startedAt > budgetMs) { console.warn(`alt share: time budget spent, ${month} and later are left for the next run`); break; }
+    const days = byMonth.get(month)!;
+    const symbols = [...files].filter(([symbol, ds]) => !exclude.has(symbol) && days.some(d => ds.has(d))).map(([symbol]) => symbol);
+    // Each symbol's funding for the month (none, or unreadable: its days are unread for it).
+    const funding = new Map<string, string | null>();
+    let fundingFiles = 0;
+    await pool(symbols.map(symbol => async () => {
+      try { const text = await archive(`monthly/fundingRate/${symbol}/${symbol}-fundingRate-${month}.zip`); funding.set(symbol, text); if (text) fundingFiles++; } catch { funding.set(symbol, null); }
+    }), 64);
+    // Every (symbol, day) metrics file of the month at once, 128 at a time.
+    let monthStored = 0, failed = 0;
+    const jobs: { symbol: string; d: number }[] = [];
+    for (const d of days) for (const symbol of symbols) if (files.get(symbol)!.has(d)) jobs.push({ symbol, d });
+    const rows = await pool(jobs.map(({ symbol, d }) => async () => {
+      let usd: number;
+      // A file that could not be read (after retries) counts as a candidate that was not read.
+      try { const text = await archive(`daily/metrics/${symbol}/${symbol}-metrics-${iso(d)}.zip`); usd = text === null ? NaN : metricsUsdOiAtClose(text, d); } catch { failed++; return { d, symbol, usd: 1, rate: NaN }; }
+      const text = funding.get(symbol);
+      return { d, symbol, usd, rate: text ? lastFundingBefore(text, (d + 1) * DAY_MS) : NaN };
+    }), 128);
+    for (const d of days) {
+      const share = altNegShareFromArchive(rows.filter(r => r.d === d), exclude, TOP_ALTS);
+      const row = held.get(d);
+      if (row && share !== null) { row[2] = share; monthStored++; }
+    }
+    stored += monthStored;
+    console.log(`  ${month}: ${monthStored} of ${days.length} days, ${symbols.length} symbols, ${fundingFiles} funding files${failed ? `, ${failed} metrics files failed` : ''}`);
+    if (!monthStored) { console.warn(`alt share: nothing read for ${month} (funding not published yet?), later months wait`); break; }
+  }
+  return stored;
 }
 
 const round = (v: number, places: number): number | null => Number.isFinite(v) ? Math.round(v * 10 ** places) / 10 ** places : null;
 
 const out = arg('out');
 if (!out) { console.error('usage: positioning --out <file> [--previous <file or URL>] [--fallback <file>]'); process.exit(2); }
-const previous = await readFile(arg('previous')) ?? await readFile(arg('fallback'));
+const fallbackFile = await readFile(arg('fallback'));
+const previous = await readFile(arg('previous')) ?? fallbackFile;
 const yesterday = day(Date.now()) - 1;
 
 /** Rows by day: [oi, funding7d, altNeg], NaN when missing. */
 const held = new Map<number, [number, number, number]>();
 // A non-positive open interest is no reading (the archive's 0E-8 placeholders, once stored as 0): it is looked up again.
-for (const [d, oi, f, a] of previous?.days ?? []) held.set(d, [oi > 0 ? oi : NaN, f, a]);
+// An alt share stored another way (the old live reading) is dropped, to be read again from the archive.
+const altKept = previous?.altDef === ALT_ARCHIVE_DEF;
+if (previous && !altKept) console.log('stored alt shares are not from the archive: they are read again');
+for (const [d, oi, f, a] of previous?.days ?? []) held.set(d, [oi > 0 ? oi : NaN, f, altKept ? a : NaN]);
+// The repository's copy may hold archive shares the published file lacks (a backfill seeded from a place fapi does not refuse): they
+// fill its days without one.
+if (fallbackFile && fallbackFile !== previous && fallbackFile.altDef === ALT_ARCHIVE_DEF) {
+  let filled = 0;
+  for (const [d, , , a] of fallbackFile.days) { const row = held.get(d); if (row && !Number.isFinite(row[2]) && Number.isFinite(a)) { row[2] = a; filled++; } }
+  if (filled) console.log(`alt share: ${filled} days taken from the repository's copy`);
+}
 const firstNew = previous ? previous.through + 1 : day(FUNDING_START);
 
 // Funding: the rates since six days before the first new day (its 7-day window), or from the start; from fapi, else the archive.
@@ -304,17 +395,19 @@ for (const d of newDays) {
 }
 if (Number.isNaN(through)) { console.error('nothing to write: no funding was read and there is no previous file'); process.exit(1); }
 
-// The alt share now stands for yesterday, when yesterday is in the file and has none.
-const last = held.get(yesterday);
-if (through === yesterday && last && !Number.isFinite(last[2])) {
-  try {
-    const { share, alts, read } = await readAltShare();
-    if (share === null) console.warn(`alt share not stored, ${iso(yesterday)} is written without it: open interest read for ${read} of ${alts} alts (80 % needed)`);
-    else {
-      last[2] = share;
-      console.log(`alt share: ${share.toFixed(2)}% of USD open interest negative, top ${Math.min(TOP_ALTS, read)} of ${read} of ${alts} alts read`);
-    }
-  } catch (error) { console.warn(`alt share not read, ${iso(yesterday)} is written without it: ${message(error)}`); }
+// The alt share from the archive: the equity perpetuals to leave out (fapi's exchangeInfo when it can be read, with the stored list),
+// then the days after the last stored share in months whose funding is published.
+const exclude = new Set([...(previous?.altExclude ?? []), ...(fallbackFile?.altExclude ?? [])]);
+try { for (const symbol of nonCryptoUsdtPerps(await binance('/fapi/v1/exchangeInfo'))) exclude.add(symbol); } catch (error) {
+  console.warn(`exchangeInfo: ${message(error)}; the stored list of ${exclude.size} equity perpetuals is used`);
+}
+const altMonths = Number(arg('alt-months') ?? 2), altMinutes = Number(arg('alt-minutes') ?? 12);
+const rowsNow: [number, number, number, number][] = [];
+for (let d = from; d <= through; d++) { const r = held.get(d); if (r) rowsNow.push([d, r[0], r[1], r[2]]); }
+const altWanted = altArchiveDaysWanted(rowsNow, ALT_START, Date.now());
+if (!exclude.size) console.warn('alt share not read: no list of equity perpetuals to leave out (fapi was refused and no file holds one)');
+else if (altWanted.length) {
+  try { await altFromArchive(altWanted, exclude, altMonths, altMinutes * 60_000); } catch (error) { console.warn(`alt share from the archive: ${message(error)}`); }
 }
 
 const days: [number, number | null, number | null, number | null][] = [];
@@ -322,7 +415,7 @@ for (let d = from; d <= through; d++) {
   const [oi, f, a] = held.get(d) ?? [NaN, NaN, NaN];
   days.push([d, round(oi, 3), round(f, 4), round(a, 2)]);
 }
-const file = { v: 1, source: SOURCE, builtAt: Date.now(), from, through, days };
+const file = { v: 1, source: SOURCE, builtAt: Date.now(), from, through, days, altDef: ALT_ARCHIVE_DEF, altExclude: [...exclude].sort() };
 if (!parsePositioning(JSON.parse(JSON.stringify(file)))) { console.error('built a file that does not parse'); process.exit(1); }
 fs.mkdirSync(path.dirname(path.resolve(out)), { recursive: true });
 fs.writeFileSync(out + '.tmp', JSON.stringify(file) + '\n');

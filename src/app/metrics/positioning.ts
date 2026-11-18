@@ -133,6 +133,10 @@ export interface PositioningFile {
   from: number;
   through: number;
   days: [number, number, number, number][];
+  /** How the alt share was read (`ALT_ARCHIVE_DEF`: from data.binance.vision); a file without it holds older live readings. */
+  altDef?: string;
+  /** USDT contracts left out of the alt share that the archive cannot tell apart (equity perpetuals), as exchangeInfo listed them. */
+  altExclude?: string[];
 }
 
 /** A finite number, or NaN when `raw` is null or NaN (JSON has no NaN). Anything else is invalid. */
@@ -156,7 +160,10 @@ export function parsePositioning(raw: unknown): PositioningFile | null {
   }
   for (let i = 1; i < days.length; i++) if (days[i]![0] !== days[i - 1]![0] + 1) return null;
   if (days.length && (days[0]![0] !== r.from || days[days.length - 1]![0] !== r.through)) return null;
-  return { v: 1, source: typeof r.source === 'string' ? r.source : '', builtAt: typeof r.builtAt === 'number' ? r.builtAt : 0, from: r.from, through: r.through, days };
+  const file: PositioningFile = { v: 1, source: typeof r.source === 'string' ? r.source : '', builtAt: typeof r.builtAt === 'number' ? r.builtAt : 0, from: r.from, through: r.through, days };
+  if (typeof r.altDef === 'string') file.altDef = r.altDef;
+  if (Array.isArray(r.altExclude) && r.altExclude.every(v => typeof v === 'string')) file.altExclude = r.altExclude as string[];
+  return file;
 }
 
 /**
@@ -224,11 +231,91 @@ export function altNegShare(premium: unknown, alts: ReadonlySet<string>, oi: Rea
     const contracts = oi.get(c.symbol);
     if (contracts !== undefined && contracts > 0 && Number.isFinite(contracts)) read.push({ usd: contracts * c.mark, negative: c.rate < 0 });
   }
-  if (!candidates.length || read.length < ALT_MIN_READ * candidates.length) return null;
+  return negShareOfTop(read, candidates.length, topN);
+}
+
+/** The USD-weighted percent negative among the top `topN` of `read` by USD; null when fewer than `ALT_MIN_READ` of `candidates` were read. */
+function negShareOfTop(read: { usd: number; negative: boolean }[], candidates: number, topN: number): number | null {
+  if (!candidates || read.length < ALT_MIN_READ * candidates) return null;
   read.sort((a, b) => b.usd - a.usd);
   let neg = 0, total = 0;
   for (const r of read.slice(0, Math.max(0, topN))) { total += r.usd; if (r.negative) neg += r.usd; }
   return total > 0 ? 100 * neg / total : null;
+}
+
+/**
+ * The alt share as stored in positioning.json, read from data.binance.vision (fapi refuses GitHub's runners): for one UTC day, each
+ * USDT-M symbol's USD open interest at the day's close (`metricsUsdOiAtClose`) and its last funding settled during the day
+ * (`lastFundingBefore`). The live reading (`altNegShare`) differs in two ways: it weighs contracts × mark price now and reads each alt's
+ * current funding rate (premiumIndex lastFundingRate, the estimate for the next settlement), and it takes the alts from exchangeInfo.
+ * The name below marks this definition in the file: a stored share under any other is read again.
+ */
+export const ALT_ARCHIVE_DEF = 'binance-vision-v1-close-oi-last-settled-funding';
+
+/**
+ * The percent of USD open interest among the top `topN` alts by USD open interest whose funding is negative, from archive rows. A
+ * candidate is a symbol other than BTCUSDT and `exclude` with a positive USD open interest at the close (one without is not trading); it
+ * is read when its funding is known. Null when fewer than `ALT_MIN_READ` of the candidates were read, as for the live reading.
+ */
+export function altNegShareFromArchive(rows: readonly { symbol: string; usd: number; rate: number }[], exclude: ReadonlySet<string>, topN = 50): number | null {
+  const candidates = rows.filter(r => r.symbol !== 'BTCUSDT' && !exclude.has(r.symbol) && Number.isFinite(r.usd) && r.usd > 0);
+  const read = candidates.filter(r => Number.isFinite(r.rate)).map(r => ({ usd: r.usd, negative: r.rate < 0 }));
+  return negShareOfTop(read, candidates.length, topN);
+}
+
+/**
+ * A day's USD open interest (sum_open_interest_value) from its data.binance.vision metrics CSV: the reading stamped 23:55, the last of the
+ * day, else the latest stamped row of the day with a reading (zero placeholders are none). NaN when there is none.
+ */
+export function metricsUsdOiAtClose(text: string, day: number): number {
+  const date = new Date(day * DAY_MS).toISOString().slice(0, 10);
+  let bestStamp = '', best = NaN;
+  for (const line of text.split('\n')) {
+    if (!line.startsWith(`${date} `)) continue;
+    const cells = line.split(','), usd = Number(cells[3]), stamp = cells[0]!;
+    if (Number.isFinite(usd) && usd > 0 && stamp > bestStamp) { bestStamp = stamp; best = usd; }
+  }
+  return best;
+}
+
+/** The rate of the last settlement with calc_time before `end` (ms) in a data.binance.vision fundingRate CSV, else NaN. */
+export function lastFundingBefore(text: string, end: number): number {
+  let at = -Infinity, rate = NaN;
+  for (const line of text.split('\n')) {
+    const cells = line.split(','), t = Number(cells[0]), r = Number(cells[2]);
+    if (cells.length >= 3 && Number.isFinite(t) && Number.isFinite(r) && cells[2] !== '' && t < end && t > at) { at = t; rate = r; }
+  }
+  return rate;
+}
+
+/**
+ * USDT contracts in exchangeInfo that are not crypto perpetuals and not dated futures: equity ("TRADIFI_PERPETUAL") and any other
+ * contract type, whatever their status. The archive lists them beside the alts with nothing to tell them apart, so they are left out by
+ * this list.
+ */
+export function nonCryptoUsdtPerps(info: unknown): Set<string> {
+  const rows = (info as { symbols?: unknown } | null)?.symbols;
+  if (!Array.isArray(rows)) throw new Error('Binance: unexpected exchange info');
+  const out = new Set<string>();
+  for (const row of rows) {
+    const s = row as { symbol?: unknown; contractType?: unknown; quoteAsset?: unknown } | null;
+    if (s && typeof s.symbol === 'string' && s.quoteAsset === 'USDT' && !s.symbol.includes('_') && s.contractType !== 'PERPETUAL') out.add(s.symbol);
+  }
+  return out;
+}
+
+/**
+ * The days whose alt share to read from the archive: after the last day that holds one (an earlier day without one stays without), from
+ * `start` (the archive's first alt day), through the file's last day, in months before the current one (UTC): the archive publishes
+ * funding a month at a time, after the month ends.
+ */
+export function altArchiveDaysWanted(days: readonly [number, number, number, number][], start: number, now: number): number[] {
+  let last = -Infinity;
+  for (const [d, , , alt] of days) if (Number.isFinite(alt) && d > last) last = d;
+  const n = new Date(now), monthStart = Math.floor(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), 1) / DAY_MS);
+  const out: number[] = [];
+  for (const [d] of days) if (d >= start && d > last && d < monthStart) out.push(d);
+  return out;
 }
 
 /** The positive sum_open_interest of the data.binance.vision metrics row stamped `stamp` (rows are not in time order), else NaN. */
@@ -308,8 +395,9 @@ export interface AltNegSeries { time: Float64Array; raw: Float64Array; avg7: Flo
 
 /**
  * The alt negative-funding share by UTC day: the archive's daily readings, plus `live` (a reading taken now) on its own day, replacing an
- * archive reading there. `avg7` is the mean of the readings held in the 7 days ending on each day (NaN where there are none, so the line
- * breaks rather than inventing a value). Empty when there are no readings.
+ * archive reading there. `avg7` is the mean of the archive readings held in the 7 days ending on each day (NaN where there are none, so
+ * the line breaks rather than inventing a value); the live reading is left out of it, since it is measured another way (`altNegShare`
+ * against `altNegShareFromArchive`) and the archive runs weeks behind. Empty when there are no readings.
  */
 export function altNegSeries(file: PositioningFile | null, live: { at: number; value: number } | null): AltNegSeries {
   const by = new Map<number, number>();
@@ -322,7 +410,7 @@ export function altNegSeries(file: PositioningFile | null, live: { at: number; v
   for (let k = 0; k < n; k++) { time[k] = (first + k) * DAY_MS; raw[k] = by.get(first + k) ?? NaN; }
   for (let k = 0; k < n; k++) {
     let sum = 0, count = 0;
-    for (let j = Math.max(0, k - 6); j <= k; j++) if (Number.isFinite(raw[j]!)) { sum += raw[j]!; count++; }
+    for (let j = Math.max(0, k - 6); j <= k; j++) if (Number.isFinite(raw[j]!) && first + j !== liveDay) { sum += raw[j]!; count++; }
     if (count) avg7[k] = sum / count;
     n7[k] = count;
   }
@@ -355,3 +443,4 @@ export function nowComparison(lows: LowEvent[], now: LowEvent): { withOi: number
     further: lows.filter(p => p.fundPts >= now.fundPts).length,
   };
 }
+

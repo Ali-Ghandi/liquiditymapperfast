@@ -355,3 +355,12 @@ git commit -m "feat(metrics): Positioning tab UI with three Binance charts"
 - Names aligned: `durableLows`, `contractsIndex`, `funding7dAnnualised`, `PositioningFile`, tab id `pos`.
 - No TBD steps; OI archive decision locked in Task 4.
 - `altNeg` stored as daily percent; chart 3 applies 7-day trailing average in the view (or script stores already-averaged — prefer **raw daily in file**, average in view for flexibility).
+
+## Task 8 (2026-11-19): alt-share history from data.binance.vision
+
+fapi refuses GitHub's runners (HTTP 451), so the stored alt share is read from the public archive instead (definition in the spec, chart 3):
+
+- Pure helpers in `positioning.ts`, tested first: `metricsUsdOiAtClose`, `lastFundingBefore`, `altNegShareFromArchive` (top 50 by USD OI, ≥ 80 % read or null), `nonCryptoUsdtPerps`, `altArchiveDaysWanted`; `ALT_ARCHIVE_DEF` marks the definition in the file.
+- `scripts/positioning.mts` reads the published months after the last stored share, at most two a run within 12 minutes; the full history (from 2021-12-01) was seeded once from the box with `--alt-months 99` and committed. When the published copy lacks archive shares, the repository's copy fills them.
+- The view's mean leaves out the live red dot; the footnote states the archive's dates and its month-long funding lag.
+- Workflow: one `SITE` address for the three `--previous` copies (the coins one lacked the repository path); `tests/fork-pages-workflow.test.mts` checks it.

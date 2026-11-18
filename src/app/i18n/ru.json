@@ -3174,7 +3174,7 @@
  "Binance BTCUSDT perpetual, daily closes (UTC); the day under way is left out. EMA from Sep 2019.": "Бессрочный BTCUSDT на Binance, дневные закрытия (UTC); текущий день не учитывается. EMA с сент. 2019.",
  "% from 21 EMA": "% от EMA 21",
  "Daily close": "Дневное закрытие",
- "Since Jan 2020": "С янв 2020",
+ "Since Dec 2021": "С дек 2021",
  "Binance funding": "Фандинг Binance",
  "no answer in 60 s": "нет ответа за 60 с",
  "The positioning archive (positioning.json) could not be read.": "Не удалось прочитать архив позиционирования (positioning.json).",
@@ -3191,13 +3191,12 @@
  "no readings yet": "пока нет данных",
  "7d mean": "среднее 7 д",
  "daily reading": "дневное значение",
- "{n} readings; daily since Nov 2026": {
-  "one": "{n} значение; ежедневно с нояб 2026",
-  "few": "{n} значения; ежедневно с нояб 2026",
-  "many": "{n} значений; ежедневно с нояб 2026",
-  "other": "{n} значения; ежедневно с нояб 2026"
+ "{n} daily readings": {
+  "one": "{n} дневное значение",
+  "few": "{n} дневных значения",
+  "many": "{n} дневных значений",
+  "other": "{n} дневного значения"
  },
- "{n} daily readings": "{n} дневных значений",
  "Reading": "Значение",
  "A Binance-only approximation of Cav's (ID Theory) Coinalyze top-300 charts. Contracts: Binance BTCUSDT perpetual open interest in BTC (USD open interest deflated by price), indexed; daily from Sep 2020 (data.binance.vision archive, then fapi). Funding: BTCUSDT 7-day mean × 3 × 365, annualised %. Alt share: share of USD open interest (contracts × mark price) among the top 50 Binance USDT-M alts by USD open interest whose last funding is negative, a 7-day mean of daily readings.": "Приближение только по Binance к графикам Cav (ID Theory) по топ-300 Coinalyze. Контракты: открытый интерес бессрочного BTCUSDT на Binance в BTC (открытый интерес в USD, очищенный от цены), индекс; ежедневно с сент 2020 (архив data.binance.vision, затем fapi). Фандинг: среднее за 7 дней BTCUSDT × 3 × 365, % годовых. Доля альтов: доля открытого интереса в USD (контракты × mark-цена) среди 50 крупнейших альтов USDT-M на Binance по открытому интересу в USD, у которых последний фандинг отрицательный, среднее за 7 дней по дневным значениям.",
  "Durable low (Cav's rule, on daily candles): a day whose intraday low is the lowest of its 10 days and at least 15% under the prior 90-day intraday high, with no intraday low under it for the next 60 days and a daily close at least 15% above it within those 60 days; a low within 60 days of the previous one is a retest and is not counted. The red \"now\" point is not a confirmed low.": "Устойчивый минимум (правило Cav, по дневным свечам): день, чей внутридневной минимум — самый низкий за его 10 дней и минимум на 15% ниже внутридневного максимума предыдущих 90 дней, без внутридневного минимума ниже него в следующие 60 дней и с дневным закрытием минимум на 15% выше в пределах этих 60 дней; минимум в пределах 60 дней от предыдущего — ретест, он не считается. Красная точка «сейчас» — не подтверждённый минимум.",
@@ -3225,6 +3224,7 @@
   "other": "Среднее по {n} значениям"
  },
  "Alt OI on negative funding": "OI альтов с отрицательным фандингом",
+ "Alt-share history: daily from {first} to {last}, {n} days, from Binance's public archive (data.binance.vision): each alt's USD open interest at the day's close and its last funding settled that day, equity perpetuals left out. The archive publishes funding a month at a time, so the history ends with last month; the red dot is the live reading (each alt's current funding rate), not part of the mean.": "История доли альтов: ежедневно с {first} по {last}, {n} дн., из публичного архива Binance (data.binance.vision): открытый интерес каждого альта в USD на закрытие дня и его последний фандинг, рассчитанный в этот день, без бессрочных контрактов на акции. Архив публикует фандинг по месяцам, поэтому история заканчивается прошлым месяцем; красная точка — живое значение (текущий фандинг каждого альта), в среднее не входит.",
  "live now: {v}%": "сейчас вживую: {v}%",
  "Binance daily closes could not be read, so only the alt share is drawn.": "Не удалось прочитать дневные закрытия Binance, поэтому показана только доля альтов.",
  "Binance daily closes could not be read; the alt share is still loading.": "Не удалось прочитать дневные закрытия Binance; доля альтов ещё загружается.",
