@@ -26,6 +26,10 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # The published site, where the data steps read each file's copy back: owner.github.io/<repository>/ for a project site, the root
+      # for a user site (a repository named owner.github.io).
+      SITE: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name != format('{0}.github.io', github.repository_owner) && format('{0}/', github.event.repository.name) || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -40,19 +44,19 @@ jobs:
       # The coin list (src/shared/coins.ts): a market whose list cannot be read from here (some exchanges refuse US addresses, where the
       # runners are) keeps its listings from the list the site has now; the copy in the repository stands in if that cannot be read.
       # A failure here never stops the deploy: the copy built into dist stays.
-      - run: npm run build:tools && node build/tools/scripts/coins.mjs --previous https://${{ github.repository_owner }}.github.io/coins.json --fallback src/app/public/coins.json --out dist/coins.json
+      - run: npm run build:tools && node build/tools/scripts/coins.mjs --previous ${SITE}coins.json --fallback src/app/public/coins.json --out dist/coins.json
         continue-on-error: true
       # The put-flow history (put-flow.json, the Put flow tab): each UTC day's premium paid by aggressive buyers of Deribit BTC options,
       # puts and calls apart, read from history.deribit.com, which a page cannot read (it sends no CORS header). Only the days after the
       # published file's last are read; the copy in the repository stands in if the published one cannot be read. A failure never stops
       # the deploy: the copy built into dist stays, and the page says through which day its history goes.
-      - run: npm run build:tools && node build/tools/scripts/put-flow.mjs --previous https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/put-flow.json --fallback src/app/public/put-flow.json --out dist/put-flow.json
+      - run: npm run build:tools && node build/tools/scripts/put-flow.mjs --previous ${SITE}put-flow.json --fallback src/app/public/put-flow.json --out dist/put-flow.json
         continue-on-error: true
         timeout-minutes: 20
       # The positioning archive (positioning.json, the Positioning tab): BTCUSDT daily open interest and 7-day funding, and the alt
       # negative-funding share, from Binance's public API. Only the days after the published file's last are added; the copy in the
       # repository stands in if the published one cannot be read. A failure never stops the deploy: the copy built into dist stays.
-      - run: npm run build:tools && node build/tools/scripts/positioning.mjs --previous https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/positioning.json --fallback src/app/public/positioning.json --out dist/positioning.json
+      - run: npm run build:tools && node build/tools/scripts/positioning.mjs --previous ${SITE}positioning.json --fallback src/app/public/positioning.json --out dist/positioning.json
         continue-on-error: true
         timeout-minutes: 20
       - uses: actions/upload-pages-artifact@v3
