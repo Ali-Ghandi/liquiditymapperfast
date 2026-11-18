@@ -172,3 +172,76 @@ export function lowEventPoints(
   }
   return out;
 }
+
+/** Trading USDT-M perpetual symbols from Binance's exchangeInfo, excluding BTCUSDT: the alts the negative-funding share is taken over. */
+export function usdtPerpAlts(info: unknown): Set<string> {
+  const rows = (info as { symbols?: unknown } | null)?.symbols;
+  if (!Array.isArray(rows)) throw new Error('Binance: unexpected exchange info');
+  const out = new Set<string>();
+  for (const row of rows) {
+    const s = row as { symbol?: unknown; status?: unknown; contractType?: unknown; quoteAsset?: unknown } | null;
+    if (s && s.status === 'TRADING' && s.contractType === 'PERPETUAL' && s.quoteAsset === 'USDT' && typeof s.symbol === 'string' && s.symbol !== 'BTCUSDT') out.add(s.symbol);
+  }
+  return out;
+}
+
+/** An alt with its last funding rate and mark price (from premiumIndex). */
+export interface AltCandidate { symbol: string; rate: number; mark: number }
+
+/** The premiumIndex rows for `alts` (never BTCUSDT) with a finite last funding rate and a positive mark price. */
+export function altCandidates(premium: unknown, alts: ReadonlySet<string>): AltCandidate[] {
+  if (!Array.isArray(premium)) throw new Error('Binance: unexpected premium index');
+  const out: AltCandidate[] = [];
+  for (const row of premium) {
+    const r = row as { symbol?: unknown; lastFundingRate?: unknown; markPrice?: unknown } | null;
+    if (typeof r?.symbol !== 'string' || r.symbol === 'BTCUSDT' || !alts.has(r.symbol)) continue;
+    const rate = Number(r.lastFundingRate), mark = Number(r.markPrice);
+    if (Number.isFinite(rate) && mark > 0) out.push({ symbol: r.symbol, rate, mark });
+  }
+  return out;
+}
+
+/** The least share of the alts whose open interest must have been read for the ranking to be the real one. */
+export const ALT_MIN_READ = 0.8;
+
+/**
+ * The percent of USD open interest (contracts × mark price) among the top `topN` alts by USD open interest whose last funding is
+ * negative. `oi` holds each alt's open interest in contracts (a symbol missing, or not positive, was not read). Null when fewer than
+ * `ALT_MIN_READ` of the alts were read (the top would be a sample, not the top) or there is nothing to weigh.
+ */
+export function altNegShare(premium: unknown, alts: ReadonlySet<string>, oi: ReadonlyMap<string, number>, topN = 50): number | null {
+  const candidates = altCandidates(premium, alts);
+  const read: { usd: number; negative: boolean }[] = [];
+  for (const c of candidates) {
+    const contracts = oi.get(c.symbol);
+    if (contracts !== undefined && contracts > 0 && Number.isFinite(contracts)) read.push({ usd: contracts * c.mark, negative: c.rate < 0 });
+  }
+  if (!candidates.length || read.length < ALT_MIN_READ * candidates.length) return null;
+  read.sort((a, b) => b.usd - a.usd);
+  let neg = 0, total = 0;
+  for (const r of read.slice(0, Math.max(0, topN))) { total += r.usd; if (r.negative) neg += r.usd; }
+  return total > 0 ? 100 * neg / total : null;
+}
+
+/** The positive sum_open_interest of the data.binance.vision metrics row stamped `stamp` (rows are not in time order), else NaN. */
+function metricsOiAt(text: string, stamp: string): number {
+  for (const line of text.split('\n')) {
+    if (!line.startsWith(`${stamp},`)) continue;
+    const c = Number(line.split(',')[2]);
+    if (c > 0 && Number.isFinite(c)) return c; // the archive writes 0E-8 / 0E-16 where it has no reading
+  }
+  return NaN;
+}
+
+/**
+ * Day `day`'s open interest from data.binance.vision's daily metrics files, as openInterestHist period=1d gives it for the bar opening
+ * that day: the reading stamped 23:55 the day before (`before` is that day's CSV), else the day's own 00:00 reading (`own`). Zero
+ * placeholder rows are no reading. NaN when the files there hold neither; null when neither file is there.
+ */
+export function dailyOiFromMetrics(before: string | null, own: string | null, day: number): number | null {
+  if (before === null && own === null) return null;
+  const iso = (d: number): string => new Date(d * DAY_MS).toISOString().slice(0, 10);
+  const close = before === null ? NaN : metricsOiAt(before, `${iso(day - 1)} 23:55:00`);
+  if (Number.isFinite(close)) return close;
+  return own === null ? NaN : metricsOiAt(own, `${iso(day)} 00:00:00`);
+}

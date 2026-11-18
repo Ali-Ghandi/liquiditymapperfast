@@ -6,7 +6,8 @@ import { DEFAULT_RANGE, METRIC_KEY, METRIC_TABS, RANGES, SOURCE_START, readMetri
 import { dayTicks, niceTicks, timeTicks } from '../src/app/metrics/ticks.ts';
 import { nearest } from '../src/app/metrics/plot.ts';
 import {
-  contractsIndex, durableLows, funding7dAnnualised, lowEventPoints, parsePositioning, pctChange, pointChange,
+  altCandidates, altNegShare, contractsIndex, dailyOiFromMetrics, durableLows, funding7dAnnualised, lowEventPoints, parsePositioning, pctChange,
+  pointChange, usdtPerpAlts,
 } from '../src/app/metrics/positioning.ts';
 
 const close = (a: number, b: number, eps: number, what = ''): void => assert.ok(Math.abs(a - b) <= eps, `${what} ${a} is not within ${eps} of ${b}`);
@@ -354,4 +355,63 @@ test('lowEventPoints keeps a low with missing OI (oiPct NaN) and skips one with 
   assert.deepEqual(lowEventPoints([{ t, confirmed: true }], dayTimes, contracts, dayTimes.map(() => NaN)), []);
   const onlyAt = dayTimes.map((_, i) => (i === 39 ? 15.5 : NaN));
   assert.deepEqual(lowEventPoints([{ t, confirmed: true }], dayTimes, contracts, onlyAt), [], 'funding at the low but no 30d lookback');
+});
+
+/** ---- alt negative-funding share and the archive's daily open interest ----------------------------------------------------------- */
+
+const prem = (symbol: string, rate: number, mark: number) => ({ symbol, lastFundingRate: String(rate), markPrice: String(mark) });
+
+test('usdtPerpAlts keeps trading USDT perpetuals other than BTCUSDT; altCandidates reads funding and mark price for them', () => {
+  const info = { symbols: [
+    { symbol: 'BTCUSDT', status: 'TRADING', contractType: 'PERPETUAL', quoteAsset: 'USDT' },
+    { symbol: 'ETHUSDT', status: 'TRADING', contractType: 'PERPETUAL', quoteAsset: 'USDT' },
+    { symbol: 'ETHUSDT_250926', status: 'TRADING', contractType: 'CURRENT_QUARTER', quoteAsset: 'USDT' },
+    { symbol: 'SOLUSDC', status: 'TRADING', contractType: 'PERPETUAL', quoteAsset: 'USDC' },
+    { symbol: 'OLDUSDT', status: 'SETTLING', contractType: 'PERPETUAL', quoteAsset: 'USDT' },
+  ] };
+  assert.deepEqual([...usdtPerpAlts(info)], ['ETHUSDT']);
+  const rows = altCandidates([prem('ETHUSDT', -0.0001, 3000), prem('XUSDT', 0.0001, 1), { symbol: 'ETHUSDT2', lastFundingRate: 'x', markPrice: '1' }], new Set(['ETHUSDT', 'ETHUSDT2']));
+  assert.deepEqual(rows, [{ symbol: 'ETHUSDT', rate: -0.0001, mark: 3000 }]);
+});
+
+test('altNegShare ranks and weights by USD open interest (contracts × mark price), not contracts', () => {
+  const premium = [prem('ETHUSDT', -0.0001, 3000), prem('SOLUSDT', 0.0001, 150), prem('PEPEUSDT', 0.0001, 0.00001)];
+  const eligible = new Set(['ETHUSDT', 'SOLUSDT', 'PEPEUSDT']);
+  // Contracts: PEPE 1e10, SOL 10,000, ETH 1,000; USD: ETH $3M (negative), SOL $1.5M, PEPE $100k.
+  const oi = new Map([['ETHUSDT', 1000], ['SOLUSDT', 10_000], ['PEPEUSDT', 1e10]]);
+  // The top 2 by USD are ETH and SOL: 3M of 4.5M negative. (By contracts they would be PEPE and SOL, with no negative share.)
+  close(altNegShare(premium, eligible, oi, 2)!, 100 * 3_000_000 / 4_500_000, 1e-9, 'USD-weighted top 2');
+  close(altNegShare(premium, eligible, oi, 3)!, 100 * 3_000_000 / 4_600_000, 1e-9, 'USD-weighted, all three');
+});
+
+test('altNegShare leaves out BTCUSDT and alts whose open interest is not positive', () => {
+  const premium = [prem('BTCUSDT', -0.001, 60_000), prem('ETHUSDT', 0.0001, 3000), prem('SOLUSDT', -0.0001, 150), prem('DOGEUSDT', -0.0001, 0.2), prem('XRPUSDT', 0.0001, 0.5), prem('ADAUSDT', 0.0001, 0.4)];
+  const eligible = new Set(['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'DOGEUSDT', 'XRPUSDT', 'ADAUSDT']);
+  const oi = new Map([['BTCUSDT', 1e9], ['ETHUSDT', 1000], ['SOLUSDT', 20_000], ['DOGEUSDT', 0], ['XRPUSDT', 1_000_000], ['ADAUSDT', 1_000_000]]);
+  // ETH $3M, SOL $3M (negative), XRP $0.5M, ADA $0.4M; DOGE has zero OI and BTC is not an alt. 4 of 5 alts read = 80 %.
+  close(altNegShare(premium, eligible, oi, 50)!, 100 * 3_000_000 / 6_900_000, 1e-9);
+});
+
+test('altNegShare is null when fewer than 80 % of the alts were read, or there is nothing to weigh', () => {
+  const premium = Array.from({ length: 10 }, (_, i) => prem(`A${i}USDT`, i % 2 ? -0.0001 : 0.0001, 1));
+  const eligible = new Set(premium.map(r => r.symbol));
+  const seven = new Map(premium.slice(0, 7).map(r => [r.symbol, 100] as [string, number]));
+  assert.equal(altNegShare(premium, eligible, seven, 50), null, '7 of 10 read');
+  const eight = new Map(premium.slice(0, 8).map(r => [r.symbol, 100] as [string, number]));
+  close(altNegShare(premium, eligible, eight, 50)!, 50, 1e-9, '8 of 10 read');
+  assert.equal(altNegShare([], new Set(), new Map(), 50), null, 'empty');
+  assert.equal(altNegShare(premium, eligible, new Map(), 50), null, 'nothing read');
+});
+
+test('dailyOiFromMetrics: the 23:55 reading of the day before, else the day\'s 00:00; zero placeholder rows are no reading', () => {
+  const head = 'create_time,symbol,sum_open_interest,sum_open_interest_value\n';
+  const before = head + '2024-07-10 23:50:00,BTCUSDT,0E-8,0E-8\n2024-07-10 23:55:00,BTCUSDT,0E-16,0E-8\n2024-07-10 12:00:00,BTCUSDT,70000.5,1\n';
+  const own = head + '2024-07-11 00:05:00,BTCUSDT,71000,1\n2024-07-11 00:00:00,BTCUSDT,70900.25,1\n';
+  const d = Date.UTC(2024, 6, 11) / DAY_MS;
+  close(dailyOiFromMetrics(before, own, d)!, 70900.25, 1e-9, 'placeholder at 23:55 falls back to 00:00');
+  const good = head + '2024-07-10 23:55:00,BTCUSDT,70123.4,1\n';
+  close(dailyOiFromMetrics(good, own, d)!, 70123.4, 1e-9, '23:55 first');
+  assert.ok(Number.isNaN(dailyOiFromMetrics(before, head + '2024-07-11 00:00:00,BTCUSDT,0E-8,0\n', d)!), 'only placeholders: NaN');
+  assert.ok(Number.isNaN(dailyOiFromMetrics(before, null, d)!), 'a file but no reading: NaN');
+  assert.equal(dailyOiFromMetrics(null, null, d), null, 'no files');
 });

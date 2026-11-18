@@ -6,7 +6,7 @@
  * negative-funding share. Every body is checked before it is used; what cannot be read is an error the tab shows, never a stand-in.
  */
 import { DAY_MS, HOUR_MS, type OptionMark } from './math.ts';
-import { parsePositioning, type PositioningFile } from './positioning.ts';
+import { altCandidates, altNegShare, parsePositioning, usdtPerpAlts, type PositioningFile } from './positioning.ts';
 import { addTrade, parsePutFlow, readTrade, type FlowDay, type PutFlowFile } from './putflow.ts';
 
 export interface Series { time: Float64Array; close: Float64Array }
@@ -147,51 +147,27 @@ export async function binanceOiDaily(progress?: (done: number, total: number) =>
   return { time: Float64Array.from(time), close: Float64Array.from(time, t => at.get(t)!) };
 }
 
-/** Trading USDT-M perpetual symbols from exchangeInfo, excluding BTCUSDT. */
-function usdtMAlts(info: unknown): Set<string> {
-  const rows = (info as { symbols?: unknown } | null)?.symbols;
-  if (!Array.isArray(rows)) throw new Error('Binance: unexpected exchange info');
-  const out = new Set<string>();
-  for (const row of rows) {
-    const s = row as { symbol?: unknown; status?: unknown; contractType?: unknown; quoteAsset?: unknown };
-    if (s && s.status === 'TRADING' && s.contractType === 'PERPETUAL' && s.quoteAsset === 'USDT' && typeof s.symbol === 'string' && s.symbol !== 'BTCUSDT') out.add(s.symbol);
-  }
-  return out;
-}
-
 /**
- * Live OI-weighted share of Binance USDT-M alts (ex-BTC, top `topN` by open interest) whose last funding rate is negative, as a percent.
- * Loads every alt's OI (at most 8 at a time) so the ranking is by OI; a symbol whose OI call fails is skipped.
+ * Live share of USD open interest among Binance USDT-M alts (ex-BTC, the top `topN` by USD open interest = contracts × mark price) whose
+ * last funding rate is negative, as a percent (`altNegShare`, which the daily archive uses too). Loads every alt's OI (at most 8 at a
+ * time) so the ranking is the real one; a symbol whose OI call fails is skipped, and fewer than 80 % read is an error.
  */
 export async function liveAltNegShare(topN = 50): Promise<number> {
   const [info, premium] = await Promise.all([
     getJson('https://fapi.binance.com/fapi/v1/exchangeInfo'),
     getJson('https://fapi.binance.com/fapi/v1/premiumIndex'),
   ]);
-  const alts = usdtMAlts(info);
-  if (!Array.isArray(premium)) throw new Error('Binance: unexpected premium index');
-  const funding = new Map<string, number>();
-  for (const row of premium) {
-    const r = row as { symbol?: unknown; lastFundingRate?: unknown };
-    if (typeof r?.symbol !== 'string' || !alts.has(r.symbol)) continue;
-    const rate = Number(r.lastFundingRate);
-    if (Number.isFinite(rate)) funding.set(r.symbol, rate);
-  }
-  const readings = await pool([...funding.keys()].map(symbol => async () => {
+  const alts = usdtPerpAlts(info);
+  const candidates = altCandidates(premium, alts);
+  const readings = await pool(candidates.map(({ symbol }) => async () => {
     try {
-      const body = await getJson(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`);
-      const oi = Number((body as { openInterest?: unknown })?.openInterest);
-      return { symbol, oi: Number.isFinite(oi) && oi > 0 ? oi : NaN };
-    } catch { return { symbol, oi: NaN }; }
+      const oi = Number((await getJson(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`) as { openInterest?: unknown } | null)?.openInterest);
+      return [symbol, oi] as [string, number];
+    } catch { return [symbol, NaN] as [string, number]; }
   }), 8);
-  const ranked = readings.filter(r => r.oi > 0).sort((a, b) => b.oi - a.oi).slice(0, Math.max(0, topN));
-  let neg = 0, total = 0;
-  for (const r of ranked) {
-    total += r.oi;
-    if (funding.get(r.symbol)! < 0) neg += r.oi;
-  }
-  if (!(total > 0)) throw new Error('Binance: no alt open interest');
-  return 100 * neg / total;
+  const share = altNegShare(premium, alts, new Map(readings), topN);
+  if (share === null) throw new Error('Binance: too few alt open interest readings');
+  return share;
 }
 
 /**
