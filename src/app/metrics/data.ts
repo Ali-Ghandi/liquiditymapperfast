@@ -2,9 +2,11 @@
  * What the metric tabs read, from the visitor's browser: Binance candles (api.binance.com, falling back to data-api.binance.vision for spot;
  * fapi.binance.com for the perpetual), Deribit's DVOL, option marks and the last day or two of option trades (www.deribit.com), and the
  * put-flow history this site builds once a day (`put-flow.json`, from history.deribit.com, which sends no CORS header and so cannot be read
- * from a page). Every body is checked before it is used; what cannot be read is an error the tab shows, never a stand-in.
+ * from a page), Binance BTC funding and daily open interest, and the positioning archive (`positioning.json`) plus a live alt
+ * negative-funding share. Every body is checked before it is used; what cannot be read is an error the tab shows, never a stand-in.
  */
 import { DAY_MS, HOUR_MS, type OptionMark } from './math.ts';
+import { parsePositioning, type PositioningFile } from './positioning.ts';
 import { addTrade, parsePutFlow, readTrade, type FlowDay, type PutFlowFile } from './putflow.ts';
 
 export interface Series { time: Float64Array; close: Float64Array }
@@ -94,6 +96,102 @@ export async function optionMarks(): Promise<OptionMark[]> {
 /** The site's put-flow history (built daily by the Pages workflow), or null when it is missing or not readable. */
 export async function putFlowHistory(): Promise<PutFlowFile | null> {
   try { return parsePutFlow(await getJson('put-flow.json', 15_000)); } catch { return null; }
+}
+
+/** The site's positioning archive (built daily by the Pages workflow), or null when it is missing or not readable. */
+export async function positioningHistory(): Promise<PositioningFile | null> {
+  try { return parsePositioning(await getJson('positioning.json', 15_000)); } catch { return null; }
+}
+
+/**
+ * Binance BTCUSDT funding settlements from `start` to now, in time order: fundingTime and fundingRate. Pages with startTime and
+ * limit=1000 (Binance still answers at most 500 a page) and continues until a page adds nothing new or is short of that cap.
+ */
+export async function binanceFunding(start: number, progress?: (done: number, total: number) => void): Promise<Series> {
+  const now = Date.now(), at = new Map<number, number>();
+  const pageSpan = 8 * HOUR_MS * 500, estimated = Math.max(1, Math.ceil((now - start) / pageSpan));
+  let cursor = start, pages = 0;
+  while (cursor <= now && pages < 200) {
+    const body = await getJson(`https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&limit=1000&startTime=${cursor}`);
+    if (!Array.isArray(body)) throw new Error('Binance: unexpected funding rates');
+    let last = cursor, fresh = 0;
+    for (const row of body) {
+      const t = Number((row as { fundingTime?: unknown })?.fundingTime), r = Number((row as { fundingRate?: unknown })?.fundingRate);
+      if (!Number.isFinite(t) || !Number.isFinite(r) || t < start) continue;
+      if (!at.has(t)) fresh++;
+      at.set(t, r);
+      if (t > last) last = t;
+    }
+    pages++;
+    progress?.(pages, Math.max(estimated, pages));
+    if (fresh === 0 || last === cursor || body.length < 500) break;
+    cursor = last + 1;
+  }
+  const time = [...at.keys()].sort((a, b) => a - b);
+  if (!time.length) throw new Error('Binance: no funding rates');
+  return { time: Float64Array.from(time), close: Float64Array.from(time, t => at.get(t)!) };
+}
+
+/** Binance BTCUSDT daily open-interest history (about the last month): bar time and sumOpenInterest in contracts. */
+export async function binanceOiDaily(progress?: (done: number, total: number) => void): Promise<Series> {
+  const body = await getJson('https://fapi.binance.com/futures/data/openInterestHist?symbol=BTCUSDT&period=1d&limit=500');
+  progress?.(1, 1);
+  if (!Array.isArray(body)) throw new Error('Binance: unexpected open interest');
+  const at = new Map<number, number>();
+  for (const row of body) {
+    const t = Number((row as { timestamp?: unknown })?.timestamp), c = Number((row as { sumOpenInterest?: unknown })?.sumOpenInterest);
+    if (Number.isFinite(t) && Number.isFinite(c) && c >= 0) at.set(t, c);
+  }
+  const time = [...at.keys()].sort((a, b) => a - b);
+  if (!time.length) throw new Error('Binance: no open interest');
+  return { time: Float64Array.from(time), close: Float64Array.from(time, t => at.get(t)!) };
+}
+
+/** Trading USDT-M perpetual symbols from exchangeInfo, excluding BTCUSDT. */
+function usdtMAlts(info: unknown): Set<string> {
+  const rows = (info as { symbols?: unknown } | null)?.symbols;
+  if (!Array.isArray(rows)) throw new Error('Binance: unexpected exchange info');
+  const out = new Set<string>();
+  for (const row of rows) {
+    const s = row as { symbol?: unknown; status?: unknown; contractType?: unknown; quoteAsset?: unknown };
+    if (s && s.status === 'TRADING' && s.contractType === 'PERPETUAL' && s.quoteAsset === 'USDT' && typeof s.symbol === 'string' && s.symbol !== 'BTCUSDT') out.add(s.symbol);
+  }
+  return out;
+}
+
+/**
+ * Live OI-weighted share of Binance USDT-M alts (ex-BTC, top `topN` by open interest) whose last funding rate is negative, as a percent.
+ * Loads every alt's OI (at most 8 at a time) so the ranking is by OI; a symbol whose OI call fails is skipped.
+ */
+export async function liveAltNegShare(topN = 50): Promise<number> {
+  const [info, premium] = await Promise.all([
+    getJson('https://fapi.binance.com/fapi/v1/exchangeInfo'),
+    getJson('https://fapi.binance.com/fapi/v1/premiumIndex'),
+  ]);
+  const alts = usdtMAlts(info);
+  if (!Array.isArray(premium)) throw new Error('Binance: unexpected premium index');
+  const funding = new Map<string, number>();
+  for (const row of premium) {
+    const r = row as { symbol?: unknown; lastFundingRate?: unknown };
+    if (typeof r?.symbol !== 'string' || !alts.has(r.symbol)) continue;
+    const rate = Number(r.lastFundingRate);
+    if (Number.isFinite(rate)) funding.set(r.symbol, rate);
+  }
+  const readings = await pool([...funding.keys()].map(symbol => async () => {
+    try {
+      const body = await getJson(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`);
+      const oi = Number((body as { openInterest?: unknown })?.openInterest);
+      return { symbol, oi: Number.isFinite(oi) && oi > 0 ? oi : NaN };
+    } catch { return { symbol, oi: NaN }; }
+  }), 8);
+  const ranked = readings.filter(r => r.oi > 0).sort((a, b) => b.oi - a.oi).slice(0, Math.max(0, topN));
+  let neg = 0, total = 0;
+  for (const r of ranked) {
+    total += r.oi;
+    if (funding.get(r.symbol)! < 0) neg += r.oi;
+  }
+  if (!(total > 0)) throw new Error('Binance: no alt open interest');
+  return 100 * neg / total;
 }
 
 /**
