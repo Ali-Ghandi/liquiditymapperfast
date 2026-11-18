@@ -20,6 +20,9 @@ const fault = (error: unknown): void => { if (!warned) { warned = true; console.
 /** Name a pane that is sized and drawn again for a sharp picture. */
 export function sharpens(pane: Sharpened): void { panes.add(pane); }
 
+/** A pane taken off the page is no longer sized for a sharp picture. */
+export function stopSharpening(pane: Sharpened): void { panes.delete(pane); }
+
 /**
  * Size every named pane's canvases at `ratio` (null: the screen's again) and draw them all now. One that cannot is passed over (said once in
  * the console) and the others still are: a picture must never leave the page at another size.

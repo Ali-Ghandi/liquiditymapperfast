@@ -19,6 +19,7 @@ import { Sounds } from './sound/sounds.ts';
 import { Alerts } from './sound/alerts.ts';
 import { Toolbar } from './toolbar.ts';
 import { StatusBar } from './statusbar.ts';
+import { MetricTabs } from './metrics/tabs.ts';
 import { anchorDate, clock, clockYear, setTimeZone, zoneName } from './format.ts';
 import { installTips } from './tip.ts';
 import { installClassicSelects, installTouchSelects } from './touch-select.ts';
@@ -138,6 +139,15 @@ async function main(): Promise<void> {
   const statusbar = new StatusBar(source.kind);
   app.append(toolbar.root, main, dock.root, statusbar.root);
   toolbar.hostStatusControls(statusbar.controls, statusbar.notices);
+  // The metric tabs (Chart | Vol | Vol gap | Term & skew | Put flow | 21 EMA): in the status bar on a computer, in Settings on a phone. Chart
+  // is the page as it was; another tab lays its view between the top bar and the status bar (metrics/tabs.ts).
+  const metrics = new MetricTabs(() => store.state.theme, () => {
+    const bar = toolbar.root.getBoundingClientRect(), status = statusbar.root.getBoundingClientRect();
+    return { top: bar.bottom, bottom: status.height > 0 ? innerHeight - status.top : 0 };
+  });
+  statusbar.metrics.append(metrics.strip);
+  app.append(metrics.overlay);
+  toolbar.metricTiles = close => metrics.tiles(close);
   toolbar.setCollapsed(store.state.barCollapsed);
   source.venues.watch?.(entries => statusbar.setVenues(entries));
   const showStatus = (): void => statusbar.update(store.state, hub.recordedSince, source.kind === 'server' ? 'server' : source.saving?.(Date.now()) ?? 'starting');
@@ -552,7 +562,7 @@ async function main(): Promise<void> {
     if (changed.has('keepAwake')) wake.set(state.keepAwake);
     // Every time on the page is written from the one setting: say it changed, and have what shows times draw again.
     if (changed.has('timeZone')) { setTimeZone(state.timeZone); heat.invalidate(); lower(); cvd.invalidate(); showStatus(); }
-    if (changed.has('theme')) { glass.setPalette(applyTheme(state.theme)); for (const p of themed) p.setPalette(state.theme); }
+    if (changed.has('theme')) { glass.setPalette(applyTheme(state.theme)); for (const p of themed) p.setPalette(state.theme); metrics.recolour(); }
     if (changed.has('material')) { applyMaterial(); hub.setTape(tapeWanted()); }
     // The page's glass draws its next frame with the new strength; the Tape's reads it with each frame it draws.
     if (changed.has('waveStrength')) { glass.setStrength(state.waveStrength); candle.invalidate(); }
@@ -683,6 +693,9 @@ async function main(): Promise<void> {
     const offer = (): void => { if (!toolbar.inviteToTour() && ++asked < 12) window.setTimeout(offer, 5_000); };
     window.setTimeout(offer, 2500);
   }
+  // The metric tab chosen on the last visit opens again (a browser that never chose one stays on the chart); the view follows the top bar's height.
+  metrics.start();
+  new ResizeObserver(() => metrics.place()).observe(toolbar.root);
   (window as unknown as { __hlm: unknown }).__hlm = { store, hub, heat, ladder, cvd, candle, sounds, alerts, glass, script, update };
 }
 

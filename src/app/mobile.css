@@ -558,3 +558,11 @@ html[data-layout^="phone"] .pane.lt .lt-halves .seg button.on { background: var(
   html[data-layout^="phone"] main .pane { animation: none !important; }
   html[data-bar="compact"] .panel, html[data-bar="compact"] .menu { animation: none; }
 }
+
+/* The metric tabs on a phone or a tablet without the status bar: a row of tabs along the top of the view, the charts stacked. */
+html:not([data-layout="desktop"]) .mx-tabs-top { display: flex; flex: none; gap: 4px; padding: 6px 8px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--line); background: var(--panel); }
+html:not([data-layout="desktop"]) .mx-tabs-top button { flex: none; min-height: 34px; padding: 0 12px; font-size: 13px; }
+html:not([data-layout="desktop"]) .mx-content { padding: 8px 8px calc(6px + env(safe-area-inset-bottom)); }
+html:not([data-layout="desktop"]) .mx-title { flex-basis: 100%; font-size: 12.5px; }
+html:not([data-layout="desktop"]) .mx-ranges button, html:not([data-layout="desktop"]) .mx-refresh { min-height: 30px; padding: 0 10px; font-size: 12px; }
+html[data-layout="phone"] .mx-body[data-layout="two"] { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }

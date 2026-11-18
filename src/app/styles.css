@@ -1251,3 +1251,25 @@ html:is([data-layout^="phone"], [data-bar="compact"]) .pane.heat .map-draw-phone
 .draw-editor.phone .draw-icon { width: 36px; height: 36px; }
 .draw-editor.phone .draw-swatch { width: 26px; height: 26px; }
 .draw-say.phone { left: 50%; top: auto; white-space: normal; max-width: calc(100% - 24px); }
+
+/* The metric tabs (metrics/tabs.ts): a row of tabs in the status bar, and the view a metric tab lays over the map and the panes. */
+.statusbar .status-metrics { flex: none; display: inline-flex; align-items: center; }
+.mx-tabs { display: inline-flex; align-items: center; gap: 2px; }
+.mx-tabs button { padding: 0 7px; min-height: 20px; font-size: 11px; }
+.mx-tabs button.on, .mx-ranges button.on { background: var(--ui); border-color: var(--ui); color: var(--on-ui, #fff); }
+.mx-overlay { position: fixed; left: 0; right: 0; z-index: 40; display: flex; flex-direction: column; background: var(--bg); color: var(--text); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.mx-overlay[hidden] { display: none; }
+.mx-tabs-top { display: none; }
+.mx-content { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; padding: 10px 14px 6px; }
+.mx-head { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; }
+.mx-title { flex: 1 1 360px; font-size: 14px; line-height: 1.35; }
+.mx-ranges { display: inline-flex; flex-wrap: wrap; gap: 2px; }
+.mx-ranges button, .mx-refresh { padding: 0 8px; min-height: 22px; font-size: 11px; }
+.mx-status { font-size: 12px; color: var(--muted); }
+.mx-status[hidden] { display: none; }
+.mx-status[data-state="error"] { color: var(--ask); }
+.mx-body { flex: 1; min-height: 0; display: grid; gap: 14px; }
+.mx-body[data-layout="two"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.mx-chart { position: relative; min-width: 0; min-height: 0; }
+.mx-chart canvas { position: absolute; inset: 0; touch-action: none; }
+.mx-foot { font-size: 11px; color: var(--muted); line-height: 1.35; }

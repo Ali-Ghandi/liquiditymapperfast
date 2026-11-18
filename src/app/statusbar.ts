@@ -69,6 +69,8 @@ export class StatusBar {
   readonly controls = el('span', { class: 'status-controls' });
   /** Where the notice that a newer version of the page is out goes on a desktop screen (update-notice.ts, placed by the toolbar). */
   readonly notices = el('span', { class: 'status-notices' });
+  /** Where the metric tabs go (metrics/tabs.ts), between the spacer and the language and theme buttons. */
+  readonly metrics = el('span', { class: 'status-metrics' });
   #connection = el('span', { class: 'status-item status-conn' });
   #venues = el('span', { class: 'status-item status-venues' });
   #mark = el('span', { class: 'status-item status-mark' });
@@ -79,7 +81,7 @@ export class StatusBar {
   #written = new Map<Element, string>();
 
   constructor(private kind: 'server' | 'browser') {
-    this.root.append(this.#connection, this.#venues, this.#mark, this.#recording, this.#saving, this.#source, this.notices, el('span', { class: 'spacer' }), this.controls);
+    this.root.append(this.#connection, this.#venues, this.#mark, this.#recording, this.#saving, this.#source, this.notices, el('span', { class: 'spacer' }), this.metrics, this.controls);
   }
 
   setVenues(entries: readonly VenueEntry[]): void { this.#entries = entries; }

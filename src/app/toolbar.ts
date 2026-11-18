@@ -766,6 +766,8 @@ export class Toolbar {
 
   /** The Tape view's choices (panes/candle-pane.ts `settingsFields`), a section of the phone's Settings; set by the page. */
   tapeFields: (() => [string, HTMLElement][]) | null = null;
+  /** The metric tabs as tiles for the Settings sheet (metrics/tabs.ts); `close` closes the sheet. */
+  metricTiles: ((close: () => void) => HTMLElement[]) | null = null;
 
   /** Put Recenter in a corner of the map `host` (on the full toolbar; the compact bar keeps it beside the timeframes). */
   placeRecenter(host: HTMLElement): void { this.#mapHost = host; this.#arrange(); }
@@ -943,6 +945,8 @@ export class Toolbar {
       body.append(
         section(t('Tools'), [el('div', { class: 'sheet-tiles' }, this.#tour, this.#range, this.#guide, this.#shot, this.#author, this.#install.root)]),
         section(t('Panels'), [this.#toggles, el('p', { class: 'sheet-note', textContent: t('Depth, OI, Delta, L/S and Stats each add a tab to the bar under the map.') })]),
+        // The metric tabs, which a computer has in its status bar (Chart is the page as it was; the others lay their charts over it).
+        ...(this.metricTiles ? [section(t('Metrics'), [el('div', { class: 'sheet-tiles' }, ...this.metricTiles(() => this.#sheet?.close()))])] : []),
         // A phone arranges its panes by tab; a touch tablet that keeps the desktop's arrangement has the layouts here, its map's corner being clear of buttons.
         ...(isPhone() ? [] : [section(t('Layouts'), [el('div', { class: 'sheet-tiles' }, button(t('Layouts'), () => { this.#sheet?.close(); this.#openLayouts(this.#more); }, t('Layouts: choose a ready-made arrangement of the panels, or save your own')))])]),
         section(t('Chart'), [el('div', { class: 'sheet-tiles' }, ...(['footprint', 'trades', 'liquidations', ...(liqLevelsUrl() ? ['liqLevels'] as const : []), 'absorption', 'traded', 'tpo', 'keyLevels', 'vwap'] as const).map(f => this.#splits![f]), this.#scriptsSplit)]),
