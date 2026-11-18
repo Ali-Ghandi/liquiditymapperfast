@@ -120,8 +120,9 @@ Create `src/app/metrics/positioning.ts` implementing the interfaces above.
 1. For each day `i`, compute prior 90-day high over `close[i-90..i-1]` (need ≥90 prior days).
 2. Candidate if `close[i] <= high * 0.85`.
 3. Among runs of candidates, take the minimum close’s day as the low `t`.
-4. Confirmed if every close in `(t, t+60d]` is `>= close_at_t` and some later close in that window or after reaches `close_at_t * 1.15` within the series (if 60d not finished, leave unconfirmed).
-5. Return confirmed lows plus at most one latest unconfirmed candidate (“now”).
+4. Skip the low if it is within 60 days (inclusive) of the previous accepted low — a retest of the same episode (Cav’s rule).
+5. Confirmed if every close in `(t, t+60d]` is `>= close_at_t` and some close in that same window reaches `close_at_t * 1.15`. If the window is not over yet and no close has gone under the low, it is pending (unconfirmed); if the window is over without the rally, the low has failed and is dropped. Confirmed and pending lows are the accepted ones for step 4.
+6. Return confirmed lows plus at most one latest pending low (“now”).
 
 - [ ] **Step 4: Run tests to verify they pass**
 

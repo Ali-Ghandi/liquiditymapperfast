@@ -293,16 +293,40 @@ test('contractsIndex deflates USD open interest by price into contracts and inde
   close(contractsIndex(usd, price)[1]!, 110, 1e-9);
 });
 
-test('durableLows: a low held 60 days that has not yet rallied 15% is still pending; one undercut afterwards is not', () => {
+test('durableLows: a low held 60 days that never rallied 15% has failed, so it is not pending (pending = the 60-day window is open)', () => {
   const t0 = Date.UTC(2024, 0, 1);
   const time = Array.from({ length: 200 }, (_, i) => t0 + i * DAY_MS);
-  // 100 days at 100, then 80 for 100 days: held and covered, never +15 %.
-  const flat = time.map((_, i) => (i < 100 ? 100 : 80));
-  assert.deepEqual(durableLows(time, flat), [{ t: t0 + 100 * DAY_MS, confirmed: false }]);
-  // The same, then 75 from day 190: under the low after its 60 days (75 is not 15 % under the 90-day high of 80, so not a new low).
-  const time2 = Array.from({ length: 220 }, (_, i) => t0 + i * DAY_MS);
-  const undercut = time2.map((_, i) => (i < 100 ? 100 : i < 190 ? 80 : 75));
-  assert.deepEqual(durableLows(time2, undercut), []);
+  // 100 days at 100, then 80 for 100 days: held 60 days but never +15 %.
+  assert.deepEqual(durableLows(time, time.map((_, i) => (i < 100 ? 100 : 80))), []);
+  // Still inside its 60 days (day 150 is 50 days after the low): pending.
+  assert.deepEqual(durableLows(time.slice(0, 151), time.slice(0, 151).map((_, i) => (i < 100 ? 100 : 80))), [{ t: t0 + 100 * DAY_MS, confirmed: false }]);
+});
+
+test('durableLows: the +15% rally must come within the 60-day hold window (Cav: "within those 60 days")', () => {
+  const t0 = Date.UTC(2024, 0, 1);
+  const time = Array.from({ length: 220 }, (_, i) => t0 + i * DAY_MS);
+  // Low 80 on day 100, held; 92 (+15 %) only from day 161, one day after the window closed.
+  const late = time.map((_, i) => (i < 100 ? 100 : i <= 160 ? 80 : 92));
+  assert.deepEqual(durableLows(time, late), []);
+  // The same rally on day 160 (the window's last day) confirms it.
+  const onTime = time.map((_, i) => (i < 100 ? 100 : i < 160 ? 80 : 92));
+  assert.deepEqual(durableLows(time, onTime), [{ t: t0 + 100 * DAY_MS, confirmed: true }]);
+});
+
+test('durableLows: a qualifying low within 60 days of the previous accepted low is a retest of the same episode and is not counted', () => {
+  const t0 = Date.UTC(2024, 0, 1);
+  const time = Array.from({ length: 260 }, (_, i) => t0 + i * DAY_MS);
+  // Low 80 on day 100; 86 (not 15 % under the high) on days 101-103; a second low of 82 on day 104 (4 days later), then 95 from day 130.
+  // Both qualify on their own (held 60 days, +15 % within them); the second is a retest.
+  const px = (i: number): number => (i < 100 ? 100 : i === 100 ? 80 : i < 104 ? 86 : i === 104 ? 82 : i < 130 ? 84 : 95);
+  const close = time.map((_, i) => px(i));
+  assert.deepEqual(durableLows(time, close), [{ t: t0 + 100 * DAY_MS, confirmed: true }]);
+  // A retest still inside its own window is not "now" either.
+  assert.deepEqual(durableLows(time.slice(0, 120), close.slice(0, 120)), [{ t: t0 + 100 * DAY_MS, confirmed: false }]);
+  // "Within 60 days" is inclusive, like the hold window: a second low 60 days on is a retest, 61 days on is a new low.
+  const second = (gap: number) => time.map((_, i) => (i < 100 ? 100 : i === 100 ? 80 : i === 100 + gap ? 81 : 96));
+  assert.deepEqual(durableLows(time, second(60)), [{ t: t0 + 100 * DAY_MS, confirmed: true }]);
+  assert.deepEqual(durableLows(time, second(61)), [{ t: t0 + 100 * DAY_MS, confirmed: true }, { t: t0 + 161 * DAY_MS, confirmed: true }]);
 });
 
 test('funding7dAnnualised means the last 7 days of funding events and annualises ×3×365×100', () => {

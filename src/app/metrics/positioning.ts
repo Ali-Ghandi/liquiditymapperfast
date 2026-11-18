@@ -9,10 +9,12 @@ import { DAY_MS } from './math.ts';
 export interface DurableLow { t: number; confirmed: boolean }
 
 /**
- * Days that fell ≥15% under the prior 90-day high. Among each run of such days, the minimum close is the low. It is confirmed once
- * every close in the next 60 days stays at or above that low and some later close reaches +15%. A low that may still be confirmed is
- * returned unconfirmed ("now"), at most one of those (the latest): its 60-day hold is not finished yet, or it is held but has not rallied
- * 15% yet and no close since has gone under it.
+ * Cav's durable lows (ID Theory's rule), on daily closes. Days that closed ≥15% under the prior 90-day high are candidates; among each run
+ * of such days, the minimum close is the low. It is confirmed when no close in the next 60 days goes under it and some close within
+ * those 60 days is ≥15% higher. A low whose 60 days are not over yet, with no close under it so far, is returned unconfirmed ("now"),
+ * at most one (the latest); once its 60 days are over without the rally it has failed and is dropped. A low within 60 days of the
+ * previous accepted (confirmed or pending) low is a retest of the same episode and is not counted. Cav reads wicks (intraday highs and
+ * lows) on Coinalyze; this reads Binance daily closes, so dates can differ by days.
  */
 export function durableLows(time: ArrayLike<number>, close: ArrayLike<number>, now?: number): DurableLow[] {
   const n = Math.min(time.length, close.length);
@@ -31,7 +33,7 @@ export function durableLows(time: ArrayLike<number>, close: ArrayLike<number>, n
   }
 
   const confirmed: DurableLow[] = [];
-  let latestUnconfirmed: DurableLow | undefined;
+  let latestUnconfirmed: DurableLow | undefined, lastAccepted = -Infinity;
   let i = 0;
   while (i < n) {
     if (!candidate[i]) { i++; continue; }
@@ -45,17 +47,20 @@ export function durableLows(time: ArrayLike<number>, close: ArrayLike<number>, n
     const t = time[minI]!;
     const holdEnd = t + 60 * DAY_MS;
     if (!Number.isFinite(minPx) || minPx <= 0) continue;
-    let held = true, covered = false, rallied = false, undercutLater = false;
+    // A retest of the episode of the previous accepted low (within 60 days, inclusive like the hold window).
+    if (t - lastAccepted <= 60 * DAY_MS) continue;
+    let held = true, covered = false, rallied = false;
     for (let j = 0; j < n; j++) {
       const tj = time[j]!, px = close[j]!;
       if (tj <= t || tj > end || !Number.isFinite(px)) continue;
-      if (px < minPx) { if (tj <= holdEnd) held = false; else undercutLater = true; }
       if (tj >= holdEnd) covered = true;
+      if (tj > holdEnd) continue;
+      if (px < minPx) held = false;
       if (px >= minPx * 1.15) rallied = true;
     }
     if (!held) continue;
-    if (covered && rallied) confirmed.push({ t, confirmed: true });
-    else if (!covered || !undercutLater) latestUnconfirmed = { t, confirmed: false };
+    if (covered && rallied) { confirmed.push({ t, confirmed: true }); lastAccepted = t; }
+    else if (!covered) { latestUnconfirmed = { t, confirmed: false }; lastAccepted = t; }
   }
   return latestUnconfirmed ? [...confirmed, latestUnconfirmed] : confirmed;
 }
