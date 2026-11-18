@@ -6,7 +6,7 @@ import { DEFAULT_RANGE, METRIC_KEY, METRIC_TABS, RANGES, SOURCE_START, readMetri
 import { dayTicks, niceTicks, timeTicks } from '../src/app/metrics/ticks.ts';
 import { nearest } from '../src/app/metrics/plot.ts';
 import {
-  contractsIndex, durableLows, funding7dAnnualised, pctChange, pointChange,
+  contractsIndex, durableLows, funding7dAnnualised, lowEventPoints, parsePositioning, pctChange, pointChange,
 } from '../src/app/metrics/positioning.ts';
 
 const close = (a: number, b: number, eps: number, what = ''): void => assert.ok(Math.abs(a - b) <= eps, `${what} ${a} is not within ${eps} of ${b}`);
@@ -301,4 +301,57 @@ test('pctChange and pointChange read 30 days back', () => {
   const series = times.map((_, i) => 100 + i);
   close(pctChange(series, times, t0 + 39 * DAY, 30), 100 * ((139 / 109) - 1), 1e-9);
   close(pointChange(series, times, t0 + 39 * DAY, 30), 30, 1e-9);
+});
+
+/** ---- positioning file and durable-low event points -------------------------------------------------------------------------------- */
+
+test('the positioning file: parsePositioning round-trips and rejects holes, a wrong span, a bad version, and a non-number', () => {
+  const days: [number, number, number, number][] = [[100, 1, 2, 3], [101, 4, 5, 6], [102, 7, 8, 9]];
+  const file = { v: 1 as const, source: 's', builtAt: 1, from: 100, through: 102, days };
+  assert.deepEqual(parsePositioning(JSON.parse(JSON.stringify(file))), file);
+  assert.equal(parsePositioning({ ...file, days: [days[0], days[2]] }), null, 'a hole');
+  assert.equal(parsePositioning({ ...file, through: 103 }), null, 'span not as stated');
+  assert.equal(parsePositioning({ ...file, v: 2 }), null);
+  assert.equal(parsePositioning({ ...file, days: [[100, 1, 'x', 3]] }), null);
+  // Missing oi / funding / altNeg may be null (JSON has no NaN) or NaN; the parser stores NaN.
+  const gapped = parsePositioning({ v: 1, source: 's', builtAt: 1, from: 100, through: 101, days: [[100, 1, 2, null], [101, null, 3, 4]] });
+  assert.ok(gapped);
+  close(gapped.days[0]![1]!, 1, 1e-9);
+  close(gapped.days[1]![2]!, 3, 1e-9);
+  assert.ok(Number.isNaN(gapped.days[0]![3]!), 'null altNeg');
+  assert.ok(Number.isNaN(gapped.days[1]![1]!), 'null oi');
+  const nanRow = parsePositioning({ v: 1, source: 's', builtAt: 1, from: 100, through: 100, days: [[100, 1, NaN, 0]] });
+  assert.ok(nanRow);
+  assert.ok(Number.isNaN(nanRow.days[0]![2]!), 'NaN funding7d');
+});
+
+test('lowEventPoints: a confirmed low with contracts up 9% and funding +5.5 points', () => {
+  const t0 = Date.UTC(2024, 0, 1);
+  const dayTimes = Array.from({ length: 40 }, (_, i) => t0 + i * DAY_MS);
+  const contracts = dayTimes.map((_, i) => (i === 39 ? 109 : 100));
+  const funding = dayTimes.map((_, i) => (i === 39 ? 15.5 : 10));
+  const points = lowEventPoints([{ t: t0 + 39 * DAY_MS, confirmed: true }], dayTimes, contracts, funding);
+  assert.equal(points.length, 1);
+  assert.equal(points[0]!.t, t0 + 39 * DAY_MS);
+  assert.equal(points[0]!.confirmed, true);
+  close(points[0]!.oiPct, 9, 1e-9);
+  close(points[0]!.fundPts, 5.5, 1e-9);
+  close(points[0]!.fundAt, 15.5, 1e-9);
+});
+
+test('lowEventPoints keeps a low with missing OI (oiPct NaN) and skips one with missing funding', () => {
+  const t0 = Date.UTC(2024, 0, 1);
+  const dayTimes = Array.from({ length: 40 }, (_, i) => t0 + i * DAY_MS);
+  const t = t0 + 39 * DAY_MS;
+  const funding = dayTimes.map((_, i) => (i === 39 ? 15.5 : 10));
+  const noOi = lowEventPoints([{ t, confirmed: false }], dayTimes, dayTimes.map(() => NaN), funding);
+  assert.equal(noOi.length, 1);
+  assert.equal(noOi[0]!.confirmed, false);
+  assert.ok(Number.isNaN(noOi[0]!.oiPct));
+  close(noOi[0]!.fundPts, 5.5, 1e-9);
+  close(noOi[0]!.fundAt, 15.5, 1e-9);
+  const contracts = dayTimes.map((_, i) => (i === 39 ? 109 : 100));
+  assert.deepEqual(lowEventPoints([{ t, confirmed: true }], dayTimes, contracts, dayTimes.map(() => NaN)), []);
+  const onlyAt = dayTimes.map((_, i) => (i === 39 ? 15.5 : NaN));
+  assert.deepEqual(lowEventPoints([{ t, confirmed: true }], dayTimes, contracts, onlyAt), [], 'funding at the low but no 30d lookback');
 });

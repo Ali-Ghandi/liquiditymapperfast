@@ -1,6 +1,6 @@
 /**
- * The arithmetic behind the Positioning tab: durable swing lows, a price-deflated contracts index, 7-day annualised funding, and
- * lookback changes. Pure and tested (`tests/fork-metrics.test.mts`).
+ * The arithmetic behind the Positioning tab: durable swing lows, a price-deflated contracts index, 7-day annualised funding,
+ * lookback changes, and the published `positioning.json` schema. Pure and tested (`tests/fork-metrics.test.mts`).
  */
 
 import { DAY_MS } from './math.ts';
@@ -111,4 +111,64 @@ export function pctChange(series: ArrayLike<number>, times: ArrayLike<number>, a
 export function pointChange(series: ArrayLike<number>, times: ArrayLike<number>, at: number, lookbackDays: number): number {
   const here = valueAtOrBefore(series, times, at), back = valueAtOrBefore(series, times, at - lookbackDays * DAY_MS);
   return Number.isFinite(here) && Number.isFinite(back) ? here - back : NaN;
+}
+
+/** One UTC day in the archive: open interest, 7-day annualised funding, and the alt negative-funding share (percent, or NaN). */
+export interface PosDay { day: number; oi: number; funding7d: number; altNeg: number }
+
+/** The file the build publishes (`positioning.json`). `days` rows are `[UTC day number, oi, funding7d, altNeg]`. */
+export interface PositioningFile {
+  v: 1;
+  source: string;
+  builtAt: number;
+  /** First and last UTC day number held (a day number is ms / 86,400,000). Every day between is a row; a missing field is NaN. */
+  from: number;
+  through: number;
+  days: [number, number, number, number][];
+}
+
+/** A finite number, or NaN when `raw` is null or NaN (JSON has no NaN). Anything else is invalid. */
+function fieldNum(raw: unknown): number | null {
+  if (raw === null) return NaN;
+  if (typeof raw === 'number' && (Number.isFinite(raw) || Number.isNaN(raw))) return raw;
+  return null;
+}
+
+/** The archive as a `PositioningFile`, or null when the body is not a v1 positioning file. */
+export function parsePositioning(raw: unknown): PositioningFile | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+  if (r.v !== 1 || !Array.isArray(r.days) || typeof r.from !== 'number' || typeof r.through !== 'number') return null;
+  const days: [number, number, number, number][] = [];
+  for (const row of r.days) {
+    if (!Array.isArray(row) || row.length !== 4) return null;
+    const day = row[0], oi = fieldNum(row[1]), funding7d = fieldNum(row[2]), altNeg = fieldNum(row[3]);
+    if (typeof day !== 'number' || !Number.isFinite(day) || oi === null || funding7d === null || altNeg === null) return null;
+    days.push([day, oi, funding7d, altNeg]);
+  }
+  for (let i = 1; i < days.length; i++) if (days[i]![0] !== days[i - 1]![0] + 1) return null;
+  if (days.length && (days[0]![0] !== r.from || days[days.length - 1]![0] !== r.through)) return null;
+  return { v: 1, source: typeof r.source === 'string' ? r.source : '', builtAt: typeof r.builtAt === 'number' ? r.builtAt : 0, from: r.from, through: r.through, days };
+}
+
+/**
+ * For each durable low, the 30-day contracts-index percent change (`oiPct`), the 30-day funding-point change (`fundPts`), and the
+ * 7-day annualised funding at the low (`fundAt`). A low with no funding lookback is skipped; a low with funding but no OI is kept
+ * (`oiPct` is NaN) so the funding-only scatter can still use it.
+ */
+export function lowEventPoints(
+  lows: DurableLow[],
+  dayTimes: ArrayLike<number>,
+  contracts: ArrayLike<number>,
+  funding: ArrayLike<number>,
+): { t: number; confirmed: boolean; oiPct: number; fundPts: number; fundAt: number }[] {
+  const out: { t: number; confirmed: boolean; oiPct: number; fundPts: number; fundAt: number }[] = [];
+  for (const low of lows) {
+    const oiPct = pctChange(contracts, dayTimes, low.t, 30);
+    const fundPts = pointChange(funding, dayTimes, low.t, 30);
+    const fundAt = valueAtOrBefore(funding, dayTimes, low.t);
+    if (!Number.isFinite(fundPts) || !Number.isFinite(fundAt)) continue;
+    out.push({ t: low.t, confirmed: low.confirmed, oiPct, fundPts, fundAt });
+  }
+  return out;
 }
