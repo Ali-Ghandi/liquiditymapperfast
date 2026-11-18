@@ -3090,11 +3090,9 @@
  "pts": "puan",
  "Funding at the low": "Dipte fonlama",
  "Now": "Şimdi",
- "Alt OI on negative funding, 7d mean": "Negatif fonlamadaki altcoin OI, 7 g ort.",
  "no readings yet": "henüz okuma yok",
  "7d mean": "7 g ort.",
  "daily reading": "günlük okuma",
- "today: live reading": "bugün: canlı okuma",
  "{n} readings; daily since Nov 2026": "{n} okuma; Kas 2026'dan beri günlük",
  "{n} daily readings": "{n} günlük okuma",
  "Reading": "Okuma",
@@ -3115,5 +3113,15 @@
  "no lows": "dip yok",
  "funding could not be read": "fonlama okunamadı",
  "Live alt share loading (about 30 s)…": "Canlı altcoin payı yükleniyor (yaklaşık 30 sn)…",
- "Live alt share unavailable ({why}); archive readings only.": "Canlı altcoin payı yok ({why}); yalnızca arşiv okumaları."
+ "Live alt share unavailable ({why}); archive readings only.": "Canlı altcoin payı yok ({why}); yalnızca arşiv okumaları.",
+ "Binance's live open interest could not be read ({why}); contracts come from the archive only, which can lag, so recent lows may have no contracts change.": "Binance'in canlı açık pozisyonu okunamadı ({why}); kontratlar yalnızca gecikebilen arşivden geliyor, bu yüzden son diplerde kontrat değişimi olmayabilir.",
+ "Mean of {n} readings": "{n} okumanın ortalaması",
+ "Alt OI on negative funding": "Negatif fonlamadaki altcoin OI",
+ "live now: {v}%": "şimdi canlı: %{v}",
+ "Binance daily closes could not be read, so only the alt share is drawn.": "Binance günlük kapanışları okunamadı, bu yüzden yalnızca altcoin payı çiziliyor.",
+ "Into the pending low of {date}: funding {pts} pts over 30 days, funding {at}% annualised; no contracts change (no open interest for those days).": "{date} tarihli bekleyen dibe doğru: 30 günde fonlama {pts} puan, fonlama yıllık %{at}; kontrat değişimi yok (o günler için açık pozisyon yok).",
+ "No pending low. Last 30 days to {date}: funding {pts} pts, funding {at}% annualised; no contracts change (no open interest for those days).": "Bekleyen dip yok. {date} tarihine kadar son 30 gün: fonlama {pts} puan, fonlama yıllık %{at}; kontrat değişimi yok (o günler için açık pozisyon yok).",
+ "Of {m} durable lows with funding, {j} saw funding rise as far.": "Fonlaması olan {m} kalıcı dipten {j} tanesinde fonlama bu kadar yükseldi.",
+ "The sample differs from Cav's: lows here run from Dec 2019 (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding, where Cav's are 11 lows since 2022.": "Örneklem Cav'ınkinden farklı: buradaki dipler Ara 2019'dan başlıyor (Binance perpetual geçmişi; açık pozisyon Eyl 2020'den), {n} tanesi açık pozisyonlu ve {m} tanesi fonlamalı; Cav'ınkiler ise 2022'den beri 11 dip.",
+ "The alt-share history is under a month long; the ranges apply once it is longer.": "Altcoin payı geçmişi bir aydan kısa; aralıklar geçmiş uzayınca geçerli olacak."
 }

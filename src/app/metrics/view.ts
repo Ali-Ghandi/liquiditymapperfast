@@ -6,10 +6,11 @@
  */
 import { t } from '../i18n.ts';
 import { PALETTES, mixHex, resolveThemeId } from '../theme.ts';
-import { Chart, type ChartSpec, type Colours } from './plot.ts';
+import { Chart, type ChartSpec } from './plot.ts';
 import { DAY_MS, HOUR_MS, alignTo, asOfClosedDay, ema, expiryReadings, flaggedRuns, pctFromEma, realisedVol, termShape, type ExpiryReading } from './math.ts';
-import { binanceCloses, binanceFunding, binanceOiDaily, dvol, liveAltNegShare, optionMarks, positioningHistory, putFlowHistory, recentPutFlow, type Series } from './data.ts';
-import { altNegSeries, contractsOnGrid, durableLows, fundingOnGrid, lowEventPoints, mergeOiByDay, nowLow, type AltNegSeries, type PositioningFile } from './positioning.ts';
+import { binanceCloses, dvol, optionMarks, putFlowHistory, recentPutFlow } from './data.ts';
+import { buildPos } from './pos-view.ts';
+import { Cached, PERP_START, STALE_MS, axis, closed, dailyPerp, f1, idx, progress, setProgressNote, signed, type Palette } from './shared.ts';
 import { trailingPutShare, type FlowDay } from './putflow.ts';
 import { RANGES, rangeLabel, rangeStart, type MetricPrefs, type RangedTab } from './settings.ts';
 import { dateLabel, dayLabel, hourLabel } from './ticks.ts';
@@ -19,7 +20,6 @@ export const GAP_FLAG = 10;
 export const SKEW_FLAG = 20;
 export const PUT_SHARE_FLAG = 68;
 export const EMA_FLAG = -10;
-const STALE_MS = 5 * 60_000;
 
 type Tab = 'vol' | 'gap' | 'term' | 'puts' | 'ema' | 'pos';
 
@@ -30,95 +30,12 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
   return node;
 };
 
-const f1 = (v: number): string => (Number.isFinite(v) ? v.toFixed(1) : '–');
 const f0 = (v: number): string => (Number.isFinite(v) ? v.toFixed(0) : '–');
-/** An axis label with a decimal only where the ticks are closer than 1 apart. */
-const axis = (v: number, step: number): string => v.toFixed(step < 1 ? 1 : 0);
-const signed = (v: number, d = 1): string => (Number.isFinite(v) ? `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(d)}` : '–');
 const kUsd = (v: number): string => (v >= 1000 ? `${+(v / 1000).toFixed(v >= 100_000 ? 0 : 1)}k` : v.toFixed(0));
 const musd = (v: number): string => (v >= 1e9 ? `$${(v / 1e9).toFixed(2)}B` : `$${(v / 1e6).toFixed(1)}M`);
 
-/** Only candles that have closed: a candle still under way is not a close. */
-function closed(s: Series, step: number, now = Date.now()): Series {
-  let n = s.time.length;
-  while (n > 0 && s.time[n - 1]! + step > now) n--;
-  return { time: s.time.slice(0, n), close: s.close.slice(0, n) };
-}
-
-/** A cache of one loaded series that covers back to `start`, read again after five minutes. */
-class Cached<T> {
-  #value: { start: number; at: number; data: T } | null = null;
-  #pending: Promise<T> | null = null;
-  #pendingStart = Infinity;
-  constructor(private load: (start: number) => Promise<T>) {}
-  get(start: number, force = false): Promise<T> {
-    const v = this.#value;
-    if (!force && v && v.start <= start && Date.now() - v.at < STALE_MS) return Promise.resolve(v.data);
-    if (this.#pending && this.#pendingStart <= start) return this.#pending;
-    const from = Math.min(start, v?.start ?? Infinity);
-    this.#pendingStart = from;
-    this.#pending = this.load(from).then(data => { this.#value = { start: from, at: Date.now(), data }; return data; }).finally(() => { this.#pending = null; this.#pendingStart = Infinity; });
-    return this.#pending;
-  }
-}
-
-let progressNote: (text: string) => void = () => {};
-const progress = (what: string) => (done: number, total: number): void => progressNote(t('Loading {what} {done}/{total}…', { what, done, total }));
-
 const hourly = new Cached(async start => closed(await binanceCloses('spot', '1h', start, progress(t('Binance hourly candles'))), HOUR_MS));
 const dvolHourly = new Cached(async start => dvol('3600', start, progress(t('Deribit DVOL'))));
-const dailyPerp = new Cached(async start => closed(await binanceCloses('perp', '1d', start), DAY_MS));
-/** Daily perpetual closes are read from the start of the perpetual whatever the range, so the 21-day EMA is settled where the chart begins. */
-const PERP_START = Date.UTC(2019, 8, 8);
-
-/** Positioning's loaders. Live funding from 2020 (the archive's funding7d covers before it and stands in when fapi cannot be read). */
-const FUNDING_START = Date.UTC(2020, 0, 1);
-const fundingRates = new Cached(async start => binanceFunding(start, progress(t('Binance funding'))));
-const oiRecent = new Cached(async () => binanceOiDaily());
-const posArchive = new Cached(async () => positioningHistory());
-/**
- * The live alt share takes ~500 calls (~30 s), so it is read at most once per five minutes whatever the refresh button or timer ask, and a
- * failure (fewer than 80 % of the alts read, or no answer in 60 s) is not tried again for five minutes either.
- */
-const altLive = (() => {
-  let last: { at: number; value: Promise<number> } | null = null;
-  return (): Promise<number> => {
-    if (last && Date.now() - last.at < STALE_MS) return last.value;
-    const value = Promise.race([
-      liveAltNegShare(50),
-      new Promise<number>((_, reject) => setTimeout(() => reject(new Error(t('no answer in 60 s'))), 60_000)),
-    ]);
-    last = { at: Date.now(), value };
-    value.catch(() => {});
-    return value;
-  };
-})();
-
-type PosPoint = ReturnType<typeof lowEventPoints>[number];
-interface PosData { points: PosPoint[]; now: PosPoint | null; pending: boolean; lastDay: number; file: PositioningFile | null; notes: string[]; hasOi: boolean; hasFunding: boolean }
-
-/** Charts A and B's events: durable lows on Binance perpetual daily closes, with OI (archive over the API's month) and 7-day funding. */
-async function posData(force: boolean): Promise<PosData> {
-  const [day, rates, oi, file] = await Promise.allSettled([dailyPerp.get(PERP_START, force), fundingRates.get(FUNDING_START, force), oiRecent.get(0, force), posArchive.get(0, force)]);
-  const archive = file.status === 'fulfilled' ? file.value : null, notes: string[] = [];
-  if (!archive) notes.push(t('The positioning archive (positioning.json) could not be read.'));
-  if (day.status === 'rejected') {
-    const why = day.reason instanceof Error ? day.reason.message : String(day.reason);
-    if (!archive) throw new Error(why);
-    notes.push(t('Binance daily closes could not be read ({why}), so there are no lows to plot.', { why }));
-    return { points: [], now: null, pending: false, lastDay: NaN, file: archive, notes, hasOi: false, hasFunding: false };
-  }
-  if (rates.status === 'rejected') notes.push(t('Live funding could not be read; the archive\'s daily funding is used.'));
-  const { time, close } = day.value;
-  const funding = fundingOnGrid(time, rates.status === 'fulfilled' ? rates.value : null, archive);
-  const contracts = contractsOnGrid(time, close, mergeOiByDay(archive, oi.status === 'fulfilled' ? oi.value : null));
-  const lastDay = time[time.length - 1]!;
-  const { lows, pending } = nowLow(durableLows(time, close), lastDay);
-  const all = lowEventPoints(lows, time, contracts, funding);
-  const now = all.find(p => !p.confirmed) ?? null;
-  return { points: all.filter(p => p.confirmed), now, pending, lastDay, file: archive, notes, hasOi: contracts.some(Number.isFinite), hasFunding: funding.some(Number.isFinite) };
-}
-
 interface VolData { time: Float64Array; rv: Float64Array; iv: Float64Array }
 async function volData(start: number): Promise<VolData> {
   const from = start - 8 * DAY_MS;
@@ -127,8 +44,6 @@ async function volData(start: number): Promise<VolData> {
   // DVOL's candle at an hour and Binance's candle at the same hour both close at the end of that hour.
   return { time: h.time, rv, iv: alignTo(h.time, d.time, d.close) };
 }
-
-type Palette = Colours & { series: string; series2: string; purple: string; soft: string; flagBar: string; bar: string; barSoft: string; accentSoft: string };
 
 export interface MetricsHost { prefs: () => MetricPrefs; setRange: (tab: RangedTab, key: string) => void; theme: () => string }
 
@@ -145,6 +60,10 @@ export class MetricsView {
   #tab: Tab | null = null;
   #seq = 0;
   #timer = 0;
+  /** The tab last shown, kept after `hide()` (so leaving Positioning for the chart and then another tab still clears its charts). */
+  #last: Tab | null = null;
+  /** Positioning's alt-share history is shorter than its ranges, so its chips are idle. */
+  #posIdle = false;
 
   constructor(private host: MetricsHost) {
     this.#refresh.type = 'button';
@@ -153,13 +72,14 @@ export class MetricsView {
     this.#refresh.onclick = () => { if (this.#tab) void this.#render(this.#tab, true); };
     this.#head.append(this.#title, this.#ranges, this.#refresh);
     this.root.append(this.#head, this.#status, this.#body, this.#foot);
-    progressNote = text => { this.#status.textContent = text; this.#status.hidden = false; };
+    setProgressNote(text => { this.#status.textContent = text; this.#status.hidden = false; });
   }
 
   show(tab: Tab): void {
     // Positioning's stack is laid out unlike the others: going to or from it clears the old charts rather than leave them under "Loading…".
-    if (this.#tab !== tab && (tab === 'pos' || this.#tab === 'pos')) this.#clear();
-    this.#tab = tab;
+    const prev = this.#tab ?? this.#last;
+    if (prev !== tab && (tab === 'pos' || prev === 'pos')) this.#clear();
+    this.#tab = this.#last = tab;
     void this.#render(tab, false);
     clearInterval(this.#timer);
     // While a tab shows, its live data is read again every five minutes (the term structure every two).
@@ -191,6 +111,7 @@ export class MetricsView {
     for (const key of RANGES[tab]) {
       const b = el('button', key === chosen ? 'on' : '', rangeLabel(tab, key));
       b.type = 'button';
+      if (tab === 'pos' && this.#posIdle) { b.disabled = true; b.title = t('The alt-share history is under a month long; the ranges apply once it is longer.'); }
       b.onclick = () => { this.host.setRange(tab, key); void this.#render(tab, false); };
       this.#ranges.append(b);
     }
@@ -234,7 +155,16 @@ export class MetricsView {
       case 'term': return this.#term();
       case 'puts': return this.#puts(rangeStart('puts', prefs.ranges.puts, now), force);
       case 'ema': return this.#ema(rangeStart('ema', prefs.ranges.ema, now), force);
-      case 'pos': return this.#pos(rangeStart('pos', prefs.ranges.pos, now), force);
+      case 'pos': {
+        const seq = this.#seq;
+        return buildPos({
+          title: this.#title, foot: this.#foot,
+          layout: (count, cls) => this.#layout(count, cls),
+          colours: () => this.#colours(),
+          current: () => seq === this.#seq && this.#tab === 'pos',
+          rangesIdle: idle => { if (this.#posIdle !== idle) { this.#posIdle = idle; if (this.#tab === 'pos') this.#setRanges('pos'); } },
+        }, rangeStart('pos', prefs.ranges.pos, now), force);
+      }
     }
   }
 
@@ -389,102 +319,6 @@ export class MetricsView {
     };
   }
 
-  async #pos(start: number, force: boolean): Promise<() => void> {
-    const seq = this.#seq, d = await posData(force);
-    const live = altLive();
-    const pts = d.points, now = d.now;
-    const dayOf = (x: number): string => dateLabel(x);
-    const pctAxis = (v: number, step: number): string => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(step < 1 ? 1 : 0)}%`;
-    const ptsAxis = (v: number, step: number): string => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(step < 1 ? 1 : 0)}`;
-    /** A scatter of the confirmed lows plus the "now" dot, with Cav's two quadrants shaded and a readout per point. */
-    const scatter = (chart: Chart, c: Palette, xOf: (p: PosPoint) => number, xTitle: string, quads: [string, string | null], title: string, empty: string): void => {
-      const shown = pts.filter(p => Number.isFinite(xOf(p)));
-      const nowOk = now && Number.isFinite(xOf(now)) ? now : null;
-      if (!shown.length && !nowOk) {
-        chart.set({ x: { kind: 'value', min: -1, max: 1, format: pctAxis, title: xTitle }, panels: [{ weight: 1, format: ptsAxis, layers: [], title: `${title} — ${empty}` }] }, c);
-        return;
-      }
-      const xs = [...shown.map(xOf), ...(nowOk ? [xOf(nowOk)] : []), 0], ys = [...shown.map(p => p.fundPts), ...(nowOk ? [nowOk.fundPts] : []), 0];
-      const lo = Math.min(...xs), hi = Math.max(...xs), m = (hi - lo) * 0.08 || 1;
-      // Headroom over the highest point, so the panel's title and the "now" label do not sit on it.
-      const yHi = Math.max(...ys), yLo = Math.min(...ys); ys.push(yHi + (yHi - yLo) * 0.2);
-      const order = shown.map((_, k) => k).sort((a, b) => xOf(shown[a]!) - xOf(shown[b]!));
-      const snapXs = [...order.map(k => xOf(shown[k]!)), ...(nowOk ? [xOf(nowOk)] : [])].sort((a, b) => a - b);
-      const line = (p: PosPoint): string[] => [
-        `${dayOf(p.t)} · ${p.confirmed ? t('durable low') : d.pending ? t('pending low, unconfirmed') : t('today, not a low')}`,
-        `${t('Contracts, 30d')} ${Number.isFinite(p.oiPct) ? `${signed(p.oiPct)}%` : '–'}`,
-        `${t('Funding, 30d change')} ${signed(p.fundPts)} ${t('pts')}`,
-        `${t('Funding at the low')} ${f1(p.fundAt)}%`,
-      ];
-      chart.set({
-        x: { kind: 'value', min: lo - m, max: hi + m, format: pctAxis, title: xTitle },
-        panels: [{ weight: 1, format: ptsAxis, include: ys, layers: [
-          // Cav's quadrants: top right (more positions or higher funding, and funding rising) red; A's bottom left (both falling) cool.
-          { kind: 'rect' as const, x0: 0, x1: Infinity, y0: 0, y1: Infinity, color: c.flagSoft, label: quads[0], labelColor: c.flag },
-          ...(quads[1] ? [{ kind: 'rect' as const, x0: -Infinity, x1: 0, y0: -Infinity, y1: 0, color: c.accentSoft, label: quads[1], labelColor: c.muted }] : []),
-          { kind: 'hline' as const, y: 0, color: c.muted, width: 1 },
-          { kind: 'vline' as const, x: 0, color: c.muted, width: 1 },
-          { kind: 'scatter' as const, x: order.map(k => xOf(shown[k]!)), y: order.map(k => shown[k]!.fundPts), color: () => c.series, r: 4.5 },
-          ...(nowOk ? [{ kind: 'dot' as const, x: xOf(nowOk), y: nowOk.fundPts, color: c.flag, label: `${t('Now')} ${dayLabel(nowOk.t)}` }] : []),
-        ], title }],
-        snap: snapXs,
-        readout: x => { const p = (nowOk && xOf(nowOk) === x ? nowOk : shown.find(q => xOf(q) === x)); return p ? line(p) : null; },
-      }, c);
-    };
-    const drawAlt = (chart: Chart, c: Palette, s: AltNegSeries, liveNote: string): void => {
-      const n = s.time.length;
-      const base = t('Alt OI on negative funding, 7d mean');
-      if (!n) {
-        chart.set({ x: { kind: 'time', min: start, max: Date.now() }, panels: [{ weight: 1, format: axis, min: 0, layers: [], title: `${base} — ${t('no readings yet')} ${liveNote}` }] }, c);
-        return;
-      }
-      const last = s.time[n - 1]!, span = last - s.time[0]!;
-      // History accrues one reading a day from Nov 2026: until it is a month long, show the last month so one point is not a sliver.
-      const min = span < 30 * DAY_MS ? last - 34 * DAY_MS : Math.max(start, s.time[0]! - DAY_MS);
-      let i = n - 1; while (i > 0 && !Number.isFinite(s.avg7[i]!)) i--;
-      const readings = Array.from(s.raw).filter(Number.isFinite).length;
-      chart.set({
-        x: { kind: 'time', min, max: last + 2 * DAY_MS },
-        legend: [{ color: c.purple, text: t('7d mean') }, { color: c.muted, text: t('daily reading') }, ...(liveNote ? [{ color: c.flag, text: liveNote }] : s.live ? [{ color: c.flag, text: t('today: live reading') }] : [])],
-        panels: [{ weight: 1, format: axis, min: 0, include: [Math.max(25, ...Array.from(s.raw).filter(Number.isFinite).map(v => v * 1.25))], layers: [
-          { kind: 'line', x: s.time, y: s.avg7, color: c.purple, width: 1.5 },
-          { kind: 'scatter', x: s.time, y: s.raw, color: () => c.muted, r: 2.5 },
-          { kind: 'dot', x: s.time[i]!, y: s.avg7[i]!, color: c.flag, label: `${f1(s.avg7[i]!)}%` },
-        ], title: `${base} · ${readings < 30 ? t('{n} readings; daily since Nov 2026', { n: readings }) : t('{n} daily readings', { n: readings })}` }],
-        snap: s.time,
-        readout: x => { const k = idx(s.time, x); return k < 0 ? null : [`${dateLabel(s.time[k]!)}${s.live && k === n - 1 ? ` (${t('live')})` : ''}`, `${t('Reading')} ${Number.isFinite(s.raw[k]!) ? `${f1(s.raw[k]!)}%` : '–'}`, `${t('7d mean')} ${Number.isFinite(s.avg7[k]!) ? `${f1(s.avg7[k]!)}%` : '–'}`]; },
-      }, c);
-    };
-    const foot = (extra: string[]): void => {
-      this.#foot.textContent = [
-        t('A Binance-only approximation of Cav\'s (ID Theory) Coinalyze top-300 charts. Contracts: Binance BTCUSDT perpetual open interest in BTC (USD open interest deflated by price), indexed; daily from Sep 2020 (data.binance.vision archive, then fapi). Funding: BTCUSDT 7-day mean × 3 × 365, annualised %. Alt share: share of USD open interest (contracts × mark price) among the top 50 Binance USDT-M alts by USD open interest whose last funding is negative, a 7-day mean of daily readings.'),
-        t('Durable low: a daily close at least 15% under the prior 90-day high, not undercut for the next 60 days, then 15% higher. The red "now" point is not a confirmed low.'),
-        ...d.notes, ...extra,
-      ].join(' ');
-    };
-    const draw = (altValue: number | null, liveNote: string): void => {
-      const c = this.#colours(), [a, b, cc] = this.#layout(3, 'pos');
-      const withOi = pts.filter(p => Number.isFinite(p.oiPct));
-      if (now) {
-        const faster = withOi.filter(p => p.oiPct > now.oiPct).length, further = pts.filter(p => p.fundPts >= now.fundPts).length;
-        const head = d.pending
-          ? t('Into the pending low of {date}: contracts {oi}% and funding {pts} pts over 30 days, funding {at}% annualised.', { date: dayLabel(now.t), oi: signed(now.oiPct), pts: signed(now.fundPts), at: f1(now.fundAt) })
-          : t('No pending low. Last 30 days to {date}: contracts {oi}% and funding {pts} pts, funding {at}% annualised.', { date: dayLabel(now.t), oi: signed(now.oiPct), pts: signed(now.fundPts), at: f1(now.fundAt) });
-        this.#title.textContent = `${head} ${t('Of {n} durable lows with open interest, {k} saw contracts grow faster; of {m} with funding, {j} saw funding rise as far.', { n: withOi.length, k: faster, m: pts.length, j: further })}`;
-      } else this.#title.textContent = t('BTC open interest and funding into durable lows, and alt perps on negative funding.');
-      scatter(a!, c, p => p.oiPct, t('BTC contracts, 30-day change'), [t('Added positions, paid more'), t('Cut positions, paid less')], t('7d funding, 30-day change (pts)'), d.hasOi ? t('no lows with open interest') : t('open interest could not be read'));
-      scatter(b!, c, p => p.fundAt, t('7d funding at the low, annualised'), [t('Paying up, and rising'), null], t('7d funding, 30-day change (pts)'), d.hasFunding ? t('no lows') : t('funding could not be read'));
-      drawAlt(cc!, c, altNegSeries(d.file, altValue === null ? null : { at: Date.now(), value: altValue }), liveNote);
-      foot(altValue === null && liveNote ? [liveNote] : []);
-    };
-    // The live alt share is slow: charts A and B (and the archive's alt readings) draw now, chart C again when it answers.
-    // `drawn`: the first drawing is the caller's (after this returns), so an answer already in hand waits for it rather than being drawn over.
-    let alt: [number | null, string] = [null, t('Live alt share loading (about 30 s)…')], drawn = false;
-    const settle = (next: [number | null, string]): void => { alt = next; if (drawn && seq === this.#seq && this.#tab === 'pos') draw(...alt); };
-    live.then(v => settle([v, '']), (e: unknown) => settle([null, t('Live alt share unavailable ({why}); archive readings only.', { why: e instanceof Error ? e.message : String(e) })]));
-    return () => { drawn = true; draw(...alt); };
-  }
-
   async #ema(start: number, force: boolean): Promise<() => void> {
     const day = await dailyPerp.get(PERP_START, force);
     const pct = pctFromEma(day.close, 21), e = ema(day.close, 21);
@@ -514,13 +348,4 @@ export class MetricsView {
       }, c);
     };
   }
-}
-
-/** The index of the last element of sorted `xs` at or before `x` (or the first, when `x` is before them all; -1 when empty). */
-function idx(xs: ArrayLike<number>, x: number): number {
-  if (!xs.length) return -1;
-  let lo = 0, hi = xs.length - 1;
-  if (x <= xs[0]!) return 0;
-  while (lo < hi) { const m = (lo + hi + 1) >> 1; if (xs[m]! <= x) lo = m; else hi = m - 1; }
-  return lo;
 }

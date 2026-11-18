@@ -3096,11 +3096,9 @@
  "pts": "Pkt.",
  "Funding at the low": "Funding am Tief",
  "Now": "Jetzt",
- "Alt OI on negative funding, 7d mean": "Alt-OI mit negativem Funding, 7-T-Mittel",
  "no readings yet": "noch keine Werte",
  "7d mean": "7-T-Mittel",
  "daily reading": "Tageswert",
- "today: live reading": "heute: Live-Wert",
  "{n} readings; daily since Nov 2026": "{n} Werte; täglich seit Nov. 2026",
  "{n} daily readings": "{n} Tageswerte",
  "Reading": "Wert",
@@ -3121,5 +3119,15 @@
  "no lows": "keine Tiefs",
  "funding could not be read": "Funding konnte nicht gelesen werden",
  "Live alt share loading (about 30 s)…": "Live-Alt-Anteil wird geladen (etwa 30 s)…",
- "Live alt share unavailable ({why}); archive readings only.": "Live-Alt-Anteil nicht verfügbar ({why}); nur Archivwerte."
+ "Live alt share unavailable ({why}); archive readings only.": "Live-Alt-Anteil nicht verfügbar ({why}); nur Archivwerte.",
+ "Binance's live open interest could not be read ({why}); contracts come from the archive only, which can lag, so recent lows may have no contracts change.": "Das Live-Open-Interest von Binance konnte nicht gelesen werden ({why}); Kontrakte stammen nur aus dem Archiv, das hinterherhinken kann, daher fehlt bei jüngsten Tiefs evtl. die Kontraktänderung.",
+ "Mean of {n} readings": "Mittel aus {n} Werten",
+ "Alt OI on negative funding": "Alt-OI mit negativem Funding",
+ "live now: {v}%": "live jetzt: {v}%",
+ "Binance daily closes could not be read, so only the alt share is drawn.": "Binance-Tagesschlusskurse konnten nicht gelesen werden, daher wird nur der Alt-Anteil gezeigt.",
+ "Into the pending low of {date}: funding {pts} pts over 30 days, funding {at}% annualised; no contracts change (no open interest for those days).": "In das offene Tief vom {date}: Funding {pts} Pkt. über 30 Tage, Funding {at}% annualisiert; keine Kontraktänderung (kein Open Interest für diese Tage).",
+ "No pending low. Last 30 days to {date}: funding {pts} pts, funding {at}% annualised; no contracts change (no open interest for those days).": "Kein offenes Tief. Letzte 30 Tage bis {date}: Funding {pts} Pkt., Funding {at}% annualisiert; keine Kontraktänderung (kein Open Interest für diese Tage).",
+ "Of {m} durable lows with funding, {j} saw funding rise as far.": "Von {m} dauerhaften Tiefs mit Funding stieg bei {j} das Funding ebenso stark.",
+ "The sample differs from Cav's: lows here run from Dec 2019 (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding, where Cav's are 11 lows since 2022.": "Die Stichprobe weicht von Cavs ab: Die Tiefs hier reichen bis Dez. 2019 zurück (Binance-Perpetual-Historie; Open Interest ab Sep. 2020), {n} mit Open Interest und {m} mit Funding, Cavs sind 11 Tiefs seit 2022.",
+ "The alt-share history is under a month long; the ranges apply once it is longer.": "Die Alt-Anteil-Historie ist kürzer als ein Monat; die Zeiträume greifen, sobald sie länger ist."
 }

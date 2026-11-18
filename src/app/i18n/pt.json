@@ -3147,11 +3147,9 @@
  "pts": "pts",
  "Funding at the low": "Funding no fundo",
  "Now": "Agora",
- "Alt OI on negative funding, 7d mean": "OI de alts com funding negativo, média 7 d",
  "no readings yet": "ainda sem leituras",
  "7d mean": "média 7 d",
  "daily reading": "leitura diária",
- "today: live reading": "hoje: leitura ao vivo",
  "{n} readings; daily since Nov 2026": "{n} leituras; diárias desde nov 2026",
  "{n} daily readings": "{n} leituras diárias",
  "Reading": "Leitura",
@@ -3172,5 +3170,15 @@
  "no lows": "nenhum fundo",
  "funding could not be read": "não foi possível ler o funding",
  "Live alt share loading (about 30 s)…": "Carregando parcela de alts ao vivo (cerca de 30 s)…",
- "Live alt share unavailable ({why}); archive readings only.": "Parcela de alts ao vivo indisponível ({why}); só leituras do arquivo."
+ "Live alt share unavailable ({why}); archive readings only.": "Parcela de alts ao vivo indisponível ({why}); só leituras do arquivo.",
+ "Binance's live open interest could not be read ({why}); contracts come from the archive only, which can lag, so recent lows may have no contracts change.": "Não foi possível ler o open interest ao vivo da Binance ({why}); os contratos vêm só do arquivo, que pode atrasar, então fundos recentes podem ficar sem variação de contratos.",
+ "Mean of {n} readings": "Média de {n} leituras",
+ "Alt OI on negative funding": "OI de alts com funding negativo",
+ "live now: {v}%": "ao vivo agora: {v}%",
+ "Binance daily closes could not be read, so only the alt share is drawn.": "Não foi possível ler os fechamentos diários da Binance, então só a parcela de alts é mostrada.",
+ "Into the pending low of {date}: funding {pts} pts over 30 days, funding {at}% annualised; no contracts change (no open interest for those days).": "Rumo ao fundo pendente de {date}: funding {pts} pts em 30 dias, funding {at}% anualizado; sem variação de contratos (sem open interest para esses dias).",
+ "No pending low. Last 30 days to {date}: funding {pts} pts, funding {at}% annualised; no contracts change (no open interest for those days).": "Sem fundo pendente. Últimos 30 dias até {date}: funding {pts} pts, funding {at}% anualizado; sem variação de contratos (sem open interest para esses dias).",
+ "Of {m} durable lows with funding, {j} saw funding rise as far.": "De {m} fundos duradouros com funding, em {j} o funding subiu tanto.",
+ "The sample differs from Cav's: lows here run from Dec 2019 (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding, where Cav's are 11 lows since 2022.": "A amostra difere da de Cav: aqui os fundos vão desde dez 2019 (histórico do perpétuo da Binance; open interest desde set 2020), {n} com open interest e {m} com funding, enquanto os de Cav são 11 fundos desde 2022.",
+ "The alt-share history is under a month long; the ranges apply once it is longer.": "O histórico da parcela de alts tem menos de um mês; os períodos passam a valer quando for mais longo."
 }

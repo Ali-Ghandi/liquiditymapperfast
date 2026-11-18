@@ -3188,11 +3188,9 @@
  "pts": "п.",
  "Funding at the low": "Фандинг на минимуме",
  "Now": "Сейчас",
- "Alt OI on negative funding, 7d mean": "OI альтов с отрицательным фандингом, среднее 7 д",
  "no readings yet": "пока нет данных",
  "7d mean": "среднее 7 д",
  "daily reading": "дневное значение",
- "today: live reading": "сегодня: живое значение",
  "{n} readings; daily since Nov 2026": "{n} значений; ежедневно с нояб 2026",
  "{n} daily readings": "{n} дневных значений",
  "Reading": "Значение",
@@ -3213,5 +3211,15 @@
  "no lows": "нет минимумов",
  "funding could not be read": "не удалось прочитать фандинг",
  "Live alt share loading (about 30 s)…": "Загрузка живой доли альтов (около 30 с)…",
- "Live alt share unavailable ({why}); archive readings only.": "Живая доля альтов недоступна ({why}); только значения из архива."
+ "Live alt share unavailable ({why}); archive readings only.": "Живая доля альтов недоступна ({why}); только значения из архива.",
+ "Binance's live open interest could not be read ({why}); contracts come from the archive only, which can lag, so recent lows may have no contracts change.": "Не удалось прочитать живой открытый интерес Binance ({why}); контракты берутся только из архива, который может отставать, поэтому у последних минимумов может не быть изменения контрактов.",
+ "Mean of {n} readings": "Среднее по {n} значениям",
+ "Alt OI on negative funding": "OI альтов с отрицательным фандингом",
+ "live now: {v}%": "сейчас вживую: {v}%",
+ "Binance daily closes could not be read, so only the alt share is drawn.": "Не удалось прочитать дневные закрытия Binance, поэтому показана только доля альтов.",
+ "Into the pending low of {date}: funding {pts} pts over 30 days, funding {at}% annualised; no contracts change (no open interest for those days).": "К текущему минимуму {date}: фандинг {pts} п. за 30 дней, фандинг {at}% годовых; изменения контрактов нет (нет открытого интереса за эти дни).",
+ "No pending low. Last 30 days to {date}: funding {pts} pts, funding {at}% annualised; no contracts change (no open interest for those days).": "Текущего минимума нет. Последние 30 дней до {date}: фандинг {pts} п., фандинг {at}% годовых; изменения контрактов нет (нет открытого интереса за эти дни).",
+ "Of {m} durable lows with funding, {j} saw funding rise as far.": "Из {m} устойчивых минимумов с фандингом у {j} фандинг вырос так же сильно.",
+ "The sample differs from Cav's: lows here run from Dec 2019 (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding, where Cav's are 11 lows since 2022.": "Выборка отличается от выборки Cav: здесь минимумы идут с дек 2019 (история бессрочного контракта Binance; открытый интерес с сент 2020), {n} с открытым интересом и {m} с фандингом, а у Cav — 11 минимумов с 2022 года.",
+ "The alt-share history is under a month long; the ranges apply once it is longer.": "История доли альтов короче месяца; диапазоны заработают, когда она станет длиннее."
 }

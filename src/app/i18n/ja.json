@@ -2945,11 +2945,9 @@
  "pts": "pt",
  "Funding at the low": "安値時のファンディング",
  "Now": "現在",
- "Alt OI on negative funding, 7d mean": "マイナスファンディングのアルトOI、7日平均",
  "no readings yet": "まだ読み取りなし",
  "7d mean": "7日平均",
  "daily reading": "日次の読み取り",
- "today: live reading": "今日：ライブ値",
  "{n} readings; daily since Nov 2026": "{n}件の読み取り、2026年11月から毎日",
  "{n} daily readings": "{n}件の日次読み取り",
  "Reading": "読み取り",
@@ -2970,5 +2968,15 @@
  "no lows": "安値なし",
  "funding could not be read": "ファンディングを読み込めませんでした",
  "Live alt share loading (about 30 s)…": "ライブのアルト比率を読み込み中（約30秒）…",
- "Live alt share unavailable ({why}); archive readings only.": "ライブのアルト比率は利用できません（{why}）。アーカイブの値のみ。"
+ "Live alt share unavailable ({why}); archive readings only.": "ライブのアルト比率は利用できません（{why}）。アーカイブの値のみ。",
+ "Binance's live open interest could not be read ({why}); contracts come from the archive only, which can lag, so recent lows may have no contracts change.": "Binance のライブ建玉を読み込めませんでした（{why}）。建玉は遅れることのあるアーカイブのみから取るため、最近の安値には建玉の変化がない場合があります。",
+ "Mean of {n} readings": "{n}件の読み取りの平均",
+ "Alt OI on negative funding": "マイナスファンディングのアルトOI",
+ "live now: {v}%": "ライブ：{v}%",
+ "Binance daily closes could not be read, so only the alt share is drawn.": "Binance の日足終値を読み込めなかったため、アルト比率のみ表示します。",
+ "Into the pending low of {date}: funding {pts} pts over 30 days, funding {at}% annualised; no contracts change (no open interest for those days).": "{date} の未確定の安値まで：30日間でファンディング {pts} pt、ファンディング年率 {at}%。建玉の変化なし（その期間の建玉がありません）。",
+ "No pending low. Last 30 days to {date}: funding {pts} pts, funding {at}% annualised; no contracts change (no open interest for those days).": "未確定の安値なし。{date} までの30日間：ファンディング {pts} pt、ファンディング年率 {at}%。建玉の変化なし（その期間の建玉がありません）。",
+ "Of {m} durable lows with funding, {j} saw funding rise as far.": "ファンディングのある持続的安値 {m} 件のうち {j} 件でファンディングが同程度以上上昇。",
+ "The sample differs from Cav's: lows here run from Dec 2019 (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding, where Cav's are 11 lows since 2022.": "サンプルは Cav のものと異なります。ここでの安値は2019年12月から（Binance 無期限の履歴。建玉は2020年9月から）、建玉あり {n} 件、ファンディングあり {m} 件で、Cav のものは2022年以降の11件です。",
+ "The alt-share history is under a month long; the ranges apply once it is longer.": "アルト比率の履歴は1か月未満です。履歴が長くなると期間の切り替えが有効になります。"
 }

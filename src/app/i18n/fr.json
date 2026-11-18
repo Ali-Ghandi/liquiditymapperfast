@@ -3147,11 +3147,9 @@
  "pts": "pts",
  "Funding at the low": "Funding au creux",
  "Now": "Maintenant",
- "Alt OI on negative funding, 7d mean": "OI des alts en funding négatif, moyenne 7 j",
  "no readings yet": "pas encore de relevés",
  "7d mean": "moyenne 7 j",
  "daily reading": "relevé quotidien",
- "today: live reading": "aujourd’hui : relevé en direct",
  "{n} readings; daily since Nov 2026": "{n} relevés ; quotidiens depuis nov. 2026",
  "{n} daily readings": "{n} relevés quotidiens",
  "Reading": "Relevé",
@@ -3172,5 +3170,15 @@
  "no lows": "aucun creux",
  "funding could not be read": "le funding n’a pas pu être lu",
  "Live alt share loading (about 30 s)…": "Chargement de la part des alts en direct (environ 30 s)…",
- "Live alt share unavailable ({why}); archive readings only.": "Part des alts en direct indisponible ({why}) ; relevés de l’archive seulement."
+ "Live alt share unavailable ({why}); archive readings only.": "Part des alts en direct indisponible ({why}) ; relevés de l’archive seulement.",
+ "Binance's live open interest could not be read ({why}); contracts come from the archive only, which can lag, so recent lows may have no contracts change.": "L’open interest en direct de Binance n’a pas pu être lu ({why}) ; les contrats viennent de l’archive seule, qui peut être en retard, donc les creux récents peuvent manquer de variation des contrats.",
+ "Mean of {n} readings": "Moyenne de {n} relevés",
+ "Alt OI on negative funding": "OI des alts en funding négatif",
+ "live now: {v}%": "en direct : {v}%",
+ "Binance daily closes could not be read, so only the alt share is drawn.": "Les clôtures quotidiennes de Binance n’ont pas pu être lues : seule la part des alts est tracée.",
+ "Into the pending low of {date}: funding {pts} pts over 30 days, funding {at}% annualised; no contracts change (no open interest for those days).": "Vers le creux en cours du {date} : funding {pts} pts sur 30 jours, funding {at}% annualisé ; pas de variation des contrats (pas d’open interest pour ces jours).",
+ "No pending low. Last 30 days to {date}: funding {pts} pts, funding {at}% annualised; no contracts change (no open interest for those days).": "Aucun creux en cours. 30 derniers jours jusqu’au {date} : funding {pts} pts, funding {at}% annualisé ; pas de variation des contrats (pas d’open interest pour ces jours).",
+ "Of {m} durable lows with funding, {j} saw funding rise as far.": "Sur {m} creux durables avec funding, {j} ont vu le funding monter autant.",
+ "The sample differs from Cav's: lows here run from Dec 2019 (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding, where Cav's are 11 lows since 2022.": "L’échantillon diffère de celui de Cav : ici les creux partent de déc. 2019 (historique du perpétuel Binance ; open interest depuis sept. 2020), {n} avec open interest et {m} avec funding, contre 11 creux depuis 2022 chez Cav.",
+ "The alt-share history is under a month long; the ranges apply once it is longer.": "L’historique de la part des alts fait moins d’un mois ; les périodes s’appliqueront quand il sera plus long."
 }
