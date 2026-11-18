@@ -49,6 +49,12 @@ jobs:
       - run: npm run build:tools && node build/tools/scripts/put-flow.mjs --previous https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/put-flow.json --fallback src/app/public/put-flow.json --out dist/put-flow.json
         continue-on-error: true
         timeout-minutes: 20
+      # The positioning archive (positioning.json, the Positioning tab): BTCUSDT daily open interest and 7-day funding, and the alt
+      # negative-funding share, from Binance's public API. Only the days after the published file's last are added; the copy in the
+      # repository stands in if the published one cannot be read. A failure never stops the deploy: the copy built into dist stays.
+      - run: npm run build:tools && node build/tools/scripts/positioning.mjs --previous https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/positioning.json --fallback src/app/public/positioning.json --out dist/positioning.json
+        continue-on-error: true
+        timeout-minutes: 20
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
