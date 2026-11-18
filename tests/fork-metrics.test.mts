@@ -257,16 +257,22 @@ test('durableLows: 15% under 90d high, held 60d, then +15% is confirmed; a fresh
   const DAY = 86_400_000;
   const t0 = Date.UTC(2024, 0, 1);
   const time: number[] = [], close: number[] = [];
-  // 100 days flat at 100, then crash to 80 (day 100), stay ≥80 for 60 days, then rally to 92 (15% from 80)
-  for (let i = 0; i < 200; i++) {
+  // 100 days flat at 100, then crash to 80 (day 100), stay ≥80 for 60 days, then rally to 92 (15% from 80).
+  // After the rally, a fresh crash to 70 (day 200) that has not yet held 60d or rallied is unconfirmed "now".
+  for (let i = 0; i < 220; i++) {
     time.push(t0 + i * DAY);
     if (i < 100) close.push(100);
     else if (i < 160) close.push(80);
-    else close.push(92);
+    else if (i < 200) close.push(92);
+    else close.push(70);
   }
-  const lows = durableLows(time, close, t0 + 199 * DAY);
+  const lows = durableLows(time, close, t0 + 219 * DAY);
   assert.equal(lows.filter(l => l.confirmed).length, 1);
   assert.equal(lows.find(l => l.confirmed)!.t, t0 + 100 * DAY);
+  const fresh = lows.filter(l => !l.confirmed);
+  assert.equal(fresh.length, 1);
+  assert.equal(fresh[0]!.t, t0 + 200 * DAY);
+  assert.equal(fresh[0]!.confirmed, false);
 });
 
 test('contractsIndex deflates OI by price and indexes to 100', () => {
