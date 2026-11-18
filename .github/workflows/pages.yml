@@ -9,6 +9,9 @@ on:
   # 60 days without a push to the repository; a push or a manual run starts it again).
   schedule:
     - cron: '17 3 * * *'
+    # Just after midnight UTC, so the put-flow history (below) holds yesterday soon after it ends: a page can read only the last 24 hours of
+    # option trades itself (www.deribit.com), and fills in from the history's last day.
+    - cron: '23 0 * * *'
   workflow_dispatch:
 
 permissions:
@@ -39,6 +42,13 @@ jobs:
       # A failure here never stops the deploy: the copy built into dist stays.
       - run: npm run build:tools && node build/tools/scripts/coins.mjs --previous https://${{ github.repository_owner }}.github.io/coins.json --fallback src/app/public/coins.json --out dist/coins.json
         continue-on-error: true
+      # The put-flow history (put-flow.json, the Put flow tab): each UTC day's premium paid by aggressive buyers of Deribit BTC options,
+      # puts and calls apart, read from history.deribit.com, which a page cannot read (it sends no CORS header). Only the days after the
+      # published file's last are read; the copy in the repository stands in if the published one cannot be read. A failure never stops
+      # the deploy: the copy built into dist stays, and the page says through which day its history goes.
+      - run: npm run build:tools && node build/tools/scripts/put-flow.mjs --previous https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/put-flow.json --fallback src/app/public/put-flow.json --out dist/put-flow.json
+        continue-on-error: true
+        timeout-minutes: 20
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
