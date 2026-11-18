@@ -3196,11 +3196,16 @@
  "no readings yet": "ще немає даних",
  "7d mean": "середнє 7 д",
  "daily reading": "денне значення",
- "{n} readings; daily since Nov 2026": "{n} значень; щодня з лист 2026",
+ "{n} readings; daily since Nov 2026": {
+  "one": "{n} значення; щодня з лист 2026",
+  "few": "{n} значення; щодня з лист 2026",
+  "many": "{n} значень; щодня з лист 2026",
+  "other": "{n} значення; щодня з лист 2026"
+ },
  "{n} daily readings": "{n} денних значень",
  "Reading": "Значення",
  "A Binance-only approximation of Cav's (ID Theory) Coinalyze top-300 charts. Contracts: Binance BTCUSDT perpetual open interest in BTC (USD open interest deflated by price), indexed; daily from Sep 2020 (data.binance.vision archive, then fapi). Funding: BTCUSDT 7-day mean × 3 × 365, annualised %. Alt share: share of USD open interest (contracts × mark price) among the top 50 Binance USDT-M alts by USD open interest whose last funding is negative, a 7-day mean of daily readings.": "Наближення лише за Binance до графіків Cav (ID Theory) за топ-300 Coinalyze. Контракти: відкритий інтерес безстрокового BTCUSDT на Binance у BTC (відкритий інтерес у USD, очищений від ціни), індекс; щодня з вер 2020 (архів data.binance.vision, потім fapi). Фандинг: середнє за 7 днів BTCUSDT × 3 × 365, % річних. Частка альтів: частка відкритого інтересу в USD (контракти × mark-ціна) серед 50 найбільших альтів USDT-M на Binance за відкритим інтересом у USD, у яких останній фандинг від’ємний, середнє за 7 днів денних значень.",
- "Durable low: a daily close at least 15% under the prior 90-day high, not undercut for the next 60 days, then 15% higher. The red \"now\" point is not a confirmed low.": "Стійкий мінімум: денне закриття щонайменше на 15% нижче максимуму попередніх 90 днів, не пробите в наступні 60 днів, потім зростання на 15%. Червона точка «зараз» — не підтверджений мінімум.",
+ "Durable low (Cav's rule, on daily closes): a close at least 15% under the prior 90-day high, not undercut for the next 60 days, and followed by a close at least 15% higher within those 60 days; a low within 60 days of the previous one is a retest and is not counted. The red \"now\" point is not a confirmed low.": "Стійкий мінімум (правило Cav, за денними закриттями): закриття щонайменше на 15% нижче максимуму попередніх 90 днів, не пробите в наступні 60 днів, за яким у межах цих 60 днів іде закриття щонайменше на 15% вище; мінімум у межах 60 днів від попереднього — ретест, він не рахується. Червона точка «зараз» — не підтверджений мінімум.",
  "Into the pending low of {date}: contracts {oi}% and funding {pts} pts over 30 days, funding {at}% annualised.": "До поточного мінімуму {date}: контракти {oi}% і фандинг {pts} п. за 30 днів, фандинг {at}% річних.",
  "No pending low. Last 30 days to {date}: contracts {oi}% and funding {pts} pts, funding {at}% annualised.": "Поточного мінімуму немає. Останні 30 днів до {date}: контракти {oi}% і фандинг {pts} п., фандинг {at}% річних.",
  "Of {n} durable lows with open interest, {k} saw contracts grow faster; of {m} with funding, {j} saw funding rise as far.": "З {n} стійких мінімумів з відкритим інтересом у {k} контракти зростали швидше; з {m} з фандингом у {j} фандинг зріс так само сильно.",
@@ -3218,13 +3223,20 @@
  "Live alt share loading (about 30 s)…": "Завантаження живої частки альтів (близько 30 с)…",
  "Live alt share unavailable ({why}); archive readings only.": "Жива частка альтів недоступна ({why}); лише значення з архіву.",
  "Binance's live open interest could not be read ({why}); contracts come from the archive only, which can lag, so recent lows may have no contracts change.": "Не вдалося прочитати живий відкритий інтерес Binance ({why}); контракти беруться лише з архіву, який може відставати, тож в останніх мінімумів може не бути зміни контрактів.",
- "Mean of {n} readings": "Середнє з {n} значень",
+ "Mean of {n} readings": {
+  "one": "Середнє з {n} значення",
+  "few": "Середнє з {n} значень",
+  "many": "Середнє з {n} значень",
+  "other": "Середнє з {n} значень"
+ },
  "Alt OI on negative funding": "OI альтів з від’ємним фандингом",
  "live now: {v}%": "зараз наживо: {v}%",
  "Binance daily closes could not be read, so only the alt share is drawn.": "Не вдалося прочитати денні закриття Binance, тож показано лише частку альтів.",
+ "Binance daily closes could not be read; the alt share is still loading.": "Не вдалося прочитати денні закриття Binance; частка альтів ще завантажується.",
+ "Neither Binance daily closes nor the alt share could be read, so there is nothing to draw.": "Не вдалося прочитати ні денні закриття Binance, ні частку альтів, тож показувати нічого.",
  "Into the pending low of {date}: funding {pts} pts over 30 days, funding {at}% annualised; no contracts change (no open interest for those days).": "До поточного мінімуму {date}: фандинг {pts} п. за 30 днів, фандинг {at}% річних; зміни контрактів немає (немає відкритого інтересу за ці дні).",
  "No pending low. Last 30 days to {date}: funding {pts} pts, funding {at}% annualised; no contracts change (no open interest for those days).": "Поточного мінімуму немає. Останні 30 днів до {date}: фандинг {pts} п., фандинг {at}% річних; зміни контрактів немає (немає відкритого інтересу за ці дні).",
  "Of {m} durable lows with funding, {j} saw funding rise as far.": "З {m} стійких мінімумів з фандингом у {j} фандинг зріс так само сильно.",
- "The sample differs from Cav's: lows here run from Dec 2019 (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding, where Cav's are 11 lows since 2022.": "Вибірка відрізняється від вибірки Cav: тут мінімуми йдуть з груд 2019 (історія безстрокового контракту Binance; відкритий інтерес з вер 2020), {n} з відкритим інтересом і {m} з фандингом, а в Cav — 11 мінімумів з 2022 року.",
+ "The sample differs from Cav's: lows here run from {first} (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding; {k} since 2022, against Cav's 11. He reads intraday wicks and 10-day swing lows on Coinalyze, this reads Binance daily closes, so some lows differ or shift by weeks.": "Вибірка відрізняється від вибірки Cav: мінімуми тут ідуть від {first} (історія безстрокового контракту Binance; відкритий інтерес з вер 2020), {n} з відкритим інтересом і {m} з фандингом; {k} з 2022 року проти 11 у Cav. Він дивиться внутрішньоденні тіні та 10-денні свінг-мінімуми на Coinalyze, а тут — денні закриття Binance, тож частина мінімумів відрізняється або зсунута на тижні.",
  "The alt-share history is under a month long; the ranges apply once it is longer.": "Історія частки альтів коротша за місяць; діапазони запрацюють, коли вона стане довшою."
 }

@@ -73,6 +73,7 @@ async function posData(force: boolean): Promise<PosData> {
   return { points: all.filter(p => p.confirmed), now, pending, file: archive, notes, hasOi: contracts.some(Number.isFinite), hasFunding: funding.some(Number.isFinite), closes: true };
 }
 
+const SINCE_2022 = Date.UTC(2022, 0, 1);
 const pctAxis = (v: number, step: number): string => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(step < 1 ? 1 : 0)}%`;
 const ptsAxis = (v: number, step: number): string => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(step < 1 ? 1 : 0)}`;
 
@@ -144,9 +145,11 @@ function drawAlt(host: PosHost, chart: Chart, c: Palette, s: AltNegSeries, start
       ...(liveAt >= 0 ? [{ color: c.flag, text: t('live now: {v}%', { v: f1(s.raw[liveAt]!) }) }] : liveNote ? [{ color: c.muted, text: liveNote }] : []),
     ],
     panels: [{ weight: 1, format: axis, min: 0, include: [Math.max(25, ...finite.map(v => v * 1.25))], layers: [
-      { kind: 'scatter', x: s.time, y: daily, color: () => c.muted, r: 4 },
-      // While the history is short the mean is marked at each day (inside the reading's grey ring), so one or two days still show.
-      { kind: 'line', x: s.time, y: s.avg7, color: c.purple, width: 1.5, dots: readings < 8 },
+      { kind: 'line', x: s.time, y: s.avg7, color: c.purple, width: 1.5 },
+      // The readings over the line; while the history is short the mean is also marked each day, as a small dot drawn on top of the
+      // reading (a bullseye where they meet), so both stay visible and one or two days still show.
+      { kind: 'scatter', x: s.time, y: daily, color: () => c.muted, r: 5 },
+      ...(readings < 8 ? [{ kind: 'scatter' as const, x: s.time, y: s.avg7, color: () => c.purple, r: 2.2 }] : []),
       ...(liveAt >= 0 ? [{ kind: 'dot' as const, x: s.time[liveAt]!, y: s.raw[liveAt]!, color: c.flag, label: `${f1(s.raw[liveAt]!)}% ${t('live')}` }] : []),
     ], title: `${base} · ${readings < 30 ? tn(readings, '{n} reading; daily since Nov 2026', '{n} readings; daily since Nov 2026') : t('{n} daily readings', { n: readings })}` }],
     snap: s.time,
@@ -161,10 +164,18 @@ function drawAlt(host: PosHost, chart: Chart, c: Palette, s: AltNegSeries, start
   }, c);
 }
 
-/** The headline, after Cav's: now's 30-day moves, and how many lows saw contracts grow faster or funding rise as far. */
-function headline(d: PosData): string {
+/**
+ * The headline, after Cav's: now's 30-day moves, and how many lows saw contracts grow faster or funding rise as far. `alt` is chart C's
+ * state, for when the closes failed: drawn (archive or live readings), still loading, or failed too.
+ */
+function headline(d: PosData, alt: 'drawn' | 'loading' | 'failed'): string {
   const now = d.now;
-  if (!now) return d.closes ? t('BTC open interest and funding into durable lows, and alt perps on negative funding.') : t('Binance daily closes could not be read, so only the alt share is drawn.');
+  if (!now) {
+    if (d.closes) return t('BTC open interest and funding into durable lows, and alt perps on negative funding.');
+    return alt === 'drawn' ? t('Binance daily closes could not be read, so only the alt share is drawn.')
+      : alt === 'loading' ? t('Binance daily closes could not be read; the alt share is still loading.')
+      : t('Neither Binance daily closes nor the alt share could be read, so there is nothing to draw.');
+  }
   const cmp = nowComparison(d.points, now), date = dayLabel(now.t), pts = signed(now.fundPts), at = f1(now.fundAt);
   const head = Number.isFinite(now.oiPct)
     ? d.pending
@@ -180,11 +191,11 @@ function headline(d: PosData): string {
 }
 
 function footnote(d: PosData, extra: string[]): string {
-  const withOi = d.points.filter(p => Number.isFinite(p.oiPct)).length;
+  const withOi = d.points.filter(p => Number.isFinite(p.oiPct)).length, since = d.points.filter(p => p.t >= SINCE_2022).length;
   return [
     t('A Binance-only approximation of Cav\'s (ID Theory) Coinalyze top-300 charts. Contracts: Binance BTCUSDT perpetual open interest in BTC (USD open interest deflated by price), indexed; daily from Sep 2020 (data.binance.vision archive, then fapi). Funding: BTCUSDT 7-day mean × 3 × 365, annualised %. Alt share: share of USD open interest (contracts × mark price) among the top 50 Binance USDT-M alts by USD open interest whose last funding is negative, a 7-day mean of daily readings.'),
-    t('Durable low: a daily close at least 15% under the prior 90-day high, not undercut for the next 60 days, then 15% higher. The red "now" point is not a confirmed low.'),
-    ...(d.closes ? [t('The sample differs from Cav\'s: lows here run from Dec 2019 (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding, where Cav\'s are 11 lows since 2022.', { n: withOi, m: d.points.length })] : []),
+    t('Durable low (Cav\'s rule, on daily closes): a close at least 15% under the prior 90-day high, not undercut for the next 60 days, and followed by a close at least 15% higher within those 60 days; a low within 60 days of the previous one is a retest and is not counted. The red "now" point is not a confirmed low.'),
+    ...(d.points.length ? [t('The sample differs from Cav\'s: lows here run from {first} (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding; {k} since 2022, against Cav\'s 11. He reads intraday wicks and 10-day swing lows on Coinalyze, this reads Binance daily closes, so some lows differ or shift by weeks.', { first: dateLabel(d.points[0]!.t), n: withOi, m: d.points.length, k: since })] : []),
     ...d.notes, ...extra,
   ].join(' ');
 }
@@ -194,19 +205,20 @@ export async function buildPos(host: PosHost, start: number, force: boolean): Pr
   // The slow live scan starts first, beside the BTC loaders, and never holds them up.
   const live = altLive();
   const d = await posData(force);
-  const draw = (altValue: number | null, liveNote: string): void => {
+  const draw = (altValue: number | null, liveNote: string, settled: boolean): void => {
     const c = host.colours(), [a, b, cc] = host.layout(3, 'pos');
-    host.title.textContent = headline(d);
+    const series = altNegSeries(d.file, altValue === null ? null : { at: Date.now(), value: altValue });
+    host.title.textContent = headline(d, series.time.length ? 'drawn' : settled ? 'failed' : 'loading');
     scatter(a!, c, d, p => p.oiPct, t('BTC contracts, 30-day change'), [t('Added positions, paid more'), t('Cut positions, paid less')], t('7d funding, 30-day change (pts)'),
       !d.closes ? t('no lows') : d.hasOi ? t('no lows with open interest') : t('open interest could not be read'));
     scatter(b!, c, d, p => p.fundAt, t('7d funding at the low, annualised'), [t('Paying up, and rising'), null], t('7d funding, 30-day change (pts)'),
       !d.closes ? t('no lows') : d.hasFunding ? t('no lows') : t('funding could not be read'));
-    drawAlt(host, cc!, c, altNegSeries(d.file, altValue === null ? null : { at: Date.now(), value: altValue }), start, liveNote);
+    drawAlt(host, cc!, c, series, start, liveNote);
     host.foot.textContent = footnote(d, altValue === null && liveNote ? [liveNote] : []);
   };
   // `drawn`: the first drawing is the caller's (after this returns), so an answer already in hand waits for it rather than being drawn over.
-  let alt: [number | null, string] = [null, t('Live alt share loading (about 30 s)…')], drawn = false;
-  const settle = (next: [number | null, string]): void => { alt = next; if (drawn && host.current()) draw(...alt); };
-  live.then(v => settle([v, '']), (e: unknown) => settle([null, t('Live alt share unavailable ({why}); archive readings only.', { why: why(e) })]));
+  let alt: [number | null, string, boolean] = [null, t('Live alt share loading (about 30 s)…'), false], drawn = false;
+  const settle = (next: [number | null, string, boolean]): void => { alt = next; if (drawn && host.current()) draw(...alt); };
+  live.then(v => settle([v, '', true]), (e: unknown) => settle([null, t('Live alt share unavailable ({why}); archive readings only.', { why: why(e) }), true]));
   return () => { drawn = true; draw(...alt); };
 }

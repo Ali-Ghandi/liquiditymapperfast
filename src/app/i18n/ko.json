@@ -2952,7 +2952,7 @@
  "{n} daily readings": "{n}개 일간 값",
  "Reading": "값",
  "A Binance-only approximation of Cav's (ID Theory) Coinalyze top-300 charts. Contracts: Binance BTCUSDT perpetual open interest in BTC (USD open interest deflated by price), indexed; daily from Sep 2020 (data.binance.vision archive, then fapi). Funding: BTCUSDT 7-day mean × 3 × 365, annualised %. Alt share: share of USD open interest (contracts × mark price) among the top 50 Binance USDT-M alts by USD open interest whose last funding is negative, a 7-day mean of daily readings.": "Cav(ID Theory)의 Coinalyze 상위 300 차트를 Binance만으로 근사한 것입니다. 계약: Binance BTCUSDT 무기한의 BTC 단위 미결제약정(가격으로 디플레이트한 USD 미결제약정), 지수화; 2020년 9월부터 일간(data.binance.vision 아카이브, 이후 fapi). 펀딩: BTCUSDT 7일 평균 × 3 × 365, 연율 %. 알트 비중: USD 미결제약정 상위 50개 Binance USDT-M 알트 중 마지막 펀딩이 음수인 알트의 USD 미결제약정(계약 × 마크 가격) 비중, 일간 값의 7일 평균.",
- "Durable low: a daily close at least 15% under the prior 90-day high, not undercut for the next 60 days, then 15% higher. The red \"now\" point is not a confirmed low.": "지속 저점: 직전 90일 고점보다 15% 이상 낮은 일봉 종가로, 이후 60일 동안 깨지지 않고 이어서 15% 오른 것. 빨간 '현재' 점은 확정된 저점이 아닙니다.",
+ "Durable low (Cav's rule, on daily closes): a close at least 15% under the prior 90-day high, not undercut for the next 60 days, and followed by a close at least 15% higher within those 60 days; a low within 60 days of the previous one is a retest and is not counted. The red \"now\" point is not a confirmed low.": "지속 저점(Cav의 규칙, 일봉 종가 기준): 직전 90일 고점보다 15% 이상 낮은 종가로, 이후 60일 동안 깨지지 않고 그 60일 안에 15% 이상 높은 종가가 뒤따른 것. 직전 저점으로부터 60일 이내의 저점은 리테스트로 보고 세지 않습니다. 빨간 \"현재\" 점은 확정된 저점이 아닙니다.",
  "Into the pending low of {date}: contracts {oi}% and funding {pts} pts over 30 days, funding {at}% annualised.": "{date} 미확정 저점까지: 30일간 계약 {oi}%, 펀딩 {pts} pt, 펀딩 연율 {at}%.",
  "No pending low. Last 30 days to {date}: contracts {oi}% and funding {pts} pts, funding {at}% annualised.": "미확정 저점 없음. {date}까지 최근 30일: 계약 {oi}%, 펀딩 {pts} pt, 펀딩 연율 {at}%.",
  "Of {n} durable lows with open interest, {k} saw contracts grow faster; of {m} with funding, {j} saw funding rise as far.": "미결제약정이 있는 지속 저점 {n}개 중 {k}개에서 계약이 더 빨리 늘었고, 펀딩이 있는 {m}개 중 {j}개에서 펀딩이 그만큼 올랐습니다.",
@@ -2974,9 +2974,11 @@
  "Alt OI on negative funding": "음수 펀딩 알트 OI",
  "live now: {v}%": "실시간: {v}%",
  "Binance daily closes could not be read, so only the alt share is drawn.": "Binance 일봉 종가를 읽을 수 없어 알트 비중만 표시합니다.",
+ "Binance daily closes could not be read; the alt share is still loading.": "Binance 일봉 종가를 읽을 수 없습니다. 알트 비중은 아직 불러오는 중입니다.",
+ "Neither Binance daily closes nor the alt share could be read, so there is nothing to draw.": "Binance 일봉 종가와 알트 비중을 모두 읽을 수 없어 표시할 것이 없습니다.",
  "Into the pending low of {date}: funding {pts} pts over 30 days, funding {at}% annualised; no contracts change (no open interest for those days).": "{date} 미확정 저점까지: 30일간 펀딩 {pts} pt, 펀딩 연율 {at}%; 계약 변화 없음(해당 기간 미결제약정 없음).",
  "No pending low. Last 30 days to {date}: funding {pts} pts, funding {at}% annualised; no contracts change (no open interest for those days).": "미확정 저점 없음. {date}까지 최근 30일: 펀딩 {pts} pt, 펀딩 연율 {at}%; 계약 변화 없음(해당 기간 미결제약정 없음).",
  "Of {m} durable lows with funding, {j} saw funding rise as far.": "펀딩이 있는 지속 저점 {m}개 중 {j}개에서 펀딩이 그만큼 올랐습니다.",
- "The sample differs from Cav's: lows here run from Dec 2019 (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding, where Cav's are 11 lows since 2022.": "표본이 Cav와 다릅니다: 여기의 저점은 2019년 12월부터(Binance 무기한 이력, 미결제약정은 2020년 9월부터)이며 미결제약정이 있는 것 {n}개, 펀딩이 있는 것 {m}개이고, Cav의 표본은 2022년 이후 11개 저점입니다.",
+ "The sample differs from Cav's: lows here run from {first} (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding; {k} since 2022, against Cav's 11. He reads intraday wicks and 10-day swing lows on Coinalyze, this reads Binance daily closes, so some lows differ or shift by weeks.": "표본은 Cav의 것과 다릅니다: 여기서 저점은 {first}부터(Binance 무기한 선물 기록, 미결제약정은 2020년 9월부터), 미결제약정이 있는 것 {n}개, 펀딩이 있는 것 {m}개이며 2022년 이후 {k}개로 Cav의 11개와 비교됩니다. Cav는 Coinalyze의 장중 꼬리와 10일 스윙 저점을 읽고, 여기서는 Binance 일봉 종가를 읽으므로 일부 저점은 다르거나 몇 주씩 어긋납니다.",
  "The alt-share history is under a month long; the ranges apply once it is longer.": "알트 비중 이력이 한 달 미만입니다. 이력이 길어지면 기간 선택이 적용됩니다."
 }

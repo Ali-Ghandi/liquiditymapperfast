@@ -111,10 +111,12 @@ export class MetricsView {
     for (const key of RANGES[tab]) {
       const b = el('button', key === chosen ? 'on' : '', rangeLabel(tab, key));
       b.type = 'button';
-      if (tab === 'pos' && this.#posIdle) { b.disabled = true; b.title = t('The alt-share history is under a month long; the ranges apply once it is longer.'); }
+      if (tab === 'pos' && this.#posIdle) b.disabled = true;
       b.onclick = () => { this.host.setRange(tab, key); void this.#render(tab, false); };
       this.#ranges.append(b);
     }
+    // Said on the page, not in a tooltip, so it reads on a phone too.
+    if (tab === 'pos' && this.#posIdle) this.#ranges.append(el('span', 'mx-ranges-note', t('The alt-share history is under a month long; the ranges apply once it is longer.')));
   }
 
   /** The charts the tab needs, reusing those already made. */

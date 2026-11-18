@@ -3150,11 +3150,15 @@
  "no readings yet": "ancora nessuna lettura",
  "7d mean": "media 7 g",
  "daily reading": "lettura giornaliera",
- "{n} readings; daily since Nov 2026": "{n} letture; giornaliere da nov 2026",
+ "{n} readings; daily since Nov 2026": {
+  "one": "{n} lettura; giornaliera da nov 2026",
+  "many": "{n} letture; giornaliere da nov 2026",
+  "other": "{n} letture; giornaliere da nov 2026"
+ },
  "{n} daily readings": "{n} letture giornaliere",
  "Reading": "Lettura",
  "A Binance-only approximation of Cav's (ID Theory) Coinalyze top-300 charts. Contracts: Binance BTCUSDT perpetual open interest in BTC (USD open interest deflated by price), indexed; daily from Sep 2020 (data.binance.vision archive, then fapi). Funding: BTCUSDT 7-day mean × 3 × 365, annualised %. Alt share: share of USD open interest (contracts × mark price) among the top 50 Binance USDT-M alts by USD open interest whose last funding is negative, a 7-day mean of daily readings.": "Un’approssimazione solo Binance dei grafici Coinalyze top-300 di Cav (ID Theory). Contratti: open interest del perpetuo BTCUSDT di Binance in BTC (open interest in USD deflazionato dal prezzo), indicizzato; giornaliero da set 2020 (archivio data.binance.vision, poi fapi). Funding: media 7 giorni BTCUSDT × 3 × 365, % annualizzato. Quota alt: quota di open interest in USD (contratti × prezzo mark) tra le 50 maggiori alt USDT-M di Binance per open interest in USD il cui ultimo funding è negativo, media 7 giorni delle letture giornaliere.",
- "Durable low: a daily close at least 15% under the prior 90-day high, not undercut for the next 60 days, then 15% higher. The red \"now\" point is not a confirmed low.": "Minimo duraturo: una chiusura giornaliera almeno del 15% sotto il massimo dei 90 giorni precedenti, non violata nei 60 giorni successivi, poi più alta del 15%. Il punto rosso «ora» non è un minimo confermato.",
+ "Durable low (Cav's rule, on daily closes): a close at least 15% under the prior 90-day high, not undercut for the next 60 days, and followed by a close at least 15% higher within those 60 days; a low within 60 days of the previous one is a retest and is not counted. The red \"now\" point is not a confirmed low.": "Minimo duraturo (regola di Cav, sulle chiusure giornaliere): una chiusura almeno il 15% sotto il massimo dei 90 giorni precedenti, non violata nei 60 giorni successivi e seguita da una chiusura almeno il 15% più alta entro quei 60 giorni; un minimo entro 60 giorni dal precedente è un retest e non conta. Il punto rosso «ora» non è un minimo confermato.",
  "Into the pending low of {date}: contracts {oi}% and funding {pts} pts over 30 days, funding {at}% annualised.": "Verso il minimo in corso del {date}: contratti {oi}% e funding {pts} pt in 30 giorni, funding {at}% annualizzato.",
  "No pending low. Last 30 days to {date}: contracts {oi}% and funding {pts} pts, funding {at}% annualised.": "Nessun minimo in corso. Ultimi 30 giorni al {date}: contratti {oi}% e funding {pts} pt, funding {at}% annualizzato.",
  "Of {n} durable lows with open interest, {k} saw contracts grow faster; of {m} with funding, {j} saw funding rise as far.": "Su {n} minimi duraturi con open interest, in {k} i contratti sono cresciuti più in fretta; su {m} con funding, in {j} il funding è salito altrettanto.",
@@ -3172,13 +3176,19 @@
  "Live alt share loading (about 30 s)…": "Caricamento quota alt live (circa 30 s)…",
  "Live alt share unavailable ({why}); archive readings only.": "Quota alt live non disponibile ({why}); solo letture d’archivio.",
  "Binance's live open interest could not be read ({why}); contracts come from the archive only, which can lag, so recent lows may have no contracts change.": "Impossibile leggere l’open interest live di Binance ({why}); i contratti vengono solo dall’archivio, che può essere in ritardo, quindi ai minimi recenti può mancare la variazione dei contratti.",
- "Mean of {n} readings": "Media di {n} letture",
+ "Mean of {n} readings": {
+  "one": "Media di {n} lettura",
+  "many": "Media di {n} letture",
+  "other": "Media di {n} letture"
+ },
  "Alt OI on negative funding": "OI delle alt con funding negativo",
  "live now: {v}%": "live ora: {v}%",
  "Binance daily closes could not be read, so only the alt share is drawn.": "Impossibile leggere le chiusure giornaliere di Binance, quindi si mostra solo la quota alt.",
+ "Binance daily closes could not be read; the alt share is still loading.": "Impossibile leggere le chiusure giornaliere di Binance; la quota alt è ancora in caricamento.",
+ "Neither Binance daily closes nor the alt share could be read, so there is nothing to draw.": "Impossibile leggere sia le chiusure giornaliere di Binance sia la quota alt, quindi non c’è nulla da disegnare.",
  "Into the pending low of {date}: funding {pts} pts over 30 days, funding {at}% annualised; no contracts change (no open interest for those days).": "Verso il minimo in corso del {date}: funding {pts} pt in 30 giorni, funding {at}% annualizzato; nessuna variazione dei contratti (nessun open interest per quei giorni).",
  "No pending low. Last 30 days to {date}: funding {pts} pts, funding {at}% annualised; no contracts change (no open interest for those days).": "Nessun minimo in corso. Ultimi 30 giorni al {date}: funding {pts} pt, funding {at}% annualizzato; nessuna variazione dei contratti (nessun open interest per quei giorni).",
  "Of {m} durable lows with funding, {j} saw funding rise as far.": "Su {m} minimi duraturi con funding, in {j} il funding è salito altrettanto.",
- "The sample differs from Cav's: lows here run from Dec 2019 (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding, where Cav's are 11 lows since 2022.": "Il campione differisce da quello di Cav: qui i minimi partono da dic 2019 (storico del perpetuo Binance; open interest da set 2020), {n} con open interest e {m} con funding, mentre quelli di Cav sono 11 minimi dal 2022.",
+ "The sample differs from Cav's: lows here run from {first} (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding; {k} since 2022, against Cav's 11. He reads intraday wicks and 10-day swing lows on Coinalyze, this reads Binance daily closes, so some lows differ or shift by weeks.": "Il campione differisce da quello di Cav: qui i minimi partono da {first} (storico del perpetuo Binance; open interest da set 2020), {n} con open interest e {m} con funding; {k} dal 2022, contro gli 11 di Cav. Lui legge stoppini intraday e minimi swing a 10 giorni su Coinalyze, qui si leggono le chiusure giornaliere di Binance, quindi alcuni minimi differiscono o slittano di settimane.",
  "The alt-share history is under a month long; the ranges apply once it is longer.": "Lo storico della quota alt è inferiore a un mese; gli intervalli si applicheranno quando sarà più lungo."
 }

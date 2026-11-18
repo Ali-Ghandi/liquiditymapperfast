@@ -3150,11 +3150,15 @@
  "no readings yet": "ainda sem leituras",
  "7d mean": "média 7 d",
  "daily reading": "leitura diária",
- "{n} readings; daily since Nov 2026": "{n} leituras; diárias desde nov 2026",
+ "{n} readings; daily since Nov 2026": {
+  "one": "{n} leitura; diária desde nov 2026",
+  "many": "{n} leituras; diárias desde nov 2026",
+  "other": "{n} leituras; diárias desde nov 2026"
+ },
  "{n} daily readings": "{n} leituras diárias",
  "Reading": "Leitura",
  "A Binance-only approximation of Cav's (ID Theory) Coinalyze top-300 charts. Contracts: Binance BTCUSDT perpetual open interest in BTC (USD open interest deflated by price), indexed; daily from Sep 2020 (data.binance.vision archive, then fapi). Funding: BTCUSDT 7-day mean × 3 × 365, annualised %. Alt share: share of USD open interest (contracts × mark price) among the top 50 Binance USDT-M alts by USD open interest whose last funding is negative, a 7-day mean of daily readings.": "Uma aproximação só com Binance dos gráficos Coinalyze top-300 de Cav (ID Theory). Contratos: open interest do perpétuo BTCUSDT da Binance em BTC (open interest em USD deflacionado pelo preço), indexado; diário desde set 2020 (arquivo data.binance.vision, depois fapi). Funding: média de 7 dias do BTCUSDT × 3 × 365, % anualizado. Parcela de alts: parcela do open interest em USD (contratos × preço mark) entre as 50 maiores alts USDT-M da Binance por open interest em USD cujo último funding é negativo, média de 7 dias das leituras diárias.",
- "Durable low: a daily close at least 15% under the prior 90-day high, not undercut for the next 60 days, then 15% higher. The red \"now\" point is not a confirmed low.": "Fundo duradouro: um fechamento diário pelo menos 15% abaixo da máxima dos 90 dias anteriores, não rompido nos 60 dias seguintes e depois 15% mais alto. O ponto vermelho “agora” não é um fundo confirmado.",
+ "Durable low (Cav's rule, on daily closes): a close at least 15% under the prior 90-day high, not undercut for the next 60 days, and followed by a close at least 15% higher within those 60 days; a low within 60 days of the previous one is a retest and is not counted. The red \"now\" point is not a confirmed low.": "Fundo durável (regra de Cav, em fechamentos diários): um fechamento pelo menos 15% abaixo da máxima dos 90 dias anteriores, não rompido nos 60 dias seguintes e seguido de um fechamento pelo menos 15% mais alto dentro desses 60 dias; um fundo a até 60 dias do anterior é um reteste e não conta. O ponto vermelho \"agora\" não é um fundo confirmado.",
  "Into the pending low of {date}: contracts {oi}% and funding {pts} pts over 30 days, funding {at}% annualised.": "Rumo ao fundo pendente de {date}: contratos {oi}% e funding {pts} pts em 30 dias, funding {at}% anualizado.",
  "No pending low. Last 30 days to {date}: contracts {oi}% and funding {pts} pts, funding {at}% annualised.": "Sem fundo pendente. Últimos 30 dias até {date}: contratos {oi}% e funding {pts} pts, funding {at}% anualizado.",
  "Of {n} durable lows with open interest, {k} saw contracts grow faster; of {m} with funding, {j} saw funding rise as far.": "De {n} fundos duradouros com open interest, em {k} os contratos cresceram mais rápido; de {m} com funding, em {j} o funding subiu tanto.",
@@ -3172,13 +3176,19 @@
  "Live alt share loading (about 30 s)…": "Carregando parcela de alts ao vivo (cerca de 30 s)…",
  "Live alt share unavailable ({why}); archive readings only.": "Parcela de alts ao vivo indisponível ({why}); só leituras do arquivo.",
  "Binance's live open interest could not be read ({why}); contracts come from the archive only, which can lag, so recent lows may have no contracts change.": "Não foi possível ler o open interest ao vivo da Binance ({why}); os contratos vêm só do arquivo, que pode atrasar, então fundos recentes podem ficar sem variação de contratos.",
- "Mean of {n} readings": "Média de {n} leituras",
+ "Mean of {n} readings": {
+  "one": "Média de {n} leitura",
+  "many": "Média de {n} leituras",
+  "other": "Média de {n} leituras"
+ },
  "Alt OI on negative funding": "OI de alts com funding negativo",
  "live now: {v}%": "ao vivo agora: {v}%",
  "Binance daily closes could not be read, so only the alt share is drawn.": "Não foi possível ler os fechamentos diários da Binance, então só a parcela de alts é mostrada.",
+ "Binance daily closes could not be read; the alt share is still loading.": "Não foi possível ler os fechamentos diários da Binance; a parcela de alts ainda está carregando.",
+ "Neither Binance daily closes nor the alt share could be read, so there is nothing to draw.": "Não foi possível ler nem os fechamentos diários da Binance nem a parcela de alts, então não há nada para mostrar.",
  "Into the pending low of {date}: funding {pts} pts over 30 days, funding {at}% annualised; no contracts change (no open interest for those days).": "Rumo ao fundo pendente de {date}: funding {pts} pts em 30 dias, funding {at}% anualizado; sem variação de contratos (sem open interest para esses dias).",
  "No pending low. Last 30 days to {date}: funding {pts} pts, funding {at}% annualised; no contracts change (no open interest for those days).": "Sem fundo pendente. Últimos 30 dias até {date}: funding {pts} pts, funding {at}% anualizado; sem variação de contratos (sem open interest para esses dias).",
  "Of {m} durable lows with funding, {j} saw funding rise as far.": "De {m} fundos duradouros com funding, em {j} o funding subiu tanto.",
- "The sample differs from Cav's: lows here run from Dec 2019 (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding, where Cav's are 11 lows since 2022.": "A amostra difere da de Cav: aqui os fundos vão desde dez 2019 (histórico do perpétuo da Binance; open interest desde set 2020), {n} com open interest e {m} com funding, enquanto os de Cav são 11 fundos desde 2022.",
+ "The sample differs from Cav's: lows here run from {first} (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding; {k} since 2022, against Cav's 11. He reads intraday wicks and 10-day swing lows on Coinalyze, this reads Binance daily closes, so some lows differ or shift by weeks.": "A amostra difere da de Cav: aqui os fundos vão desde {first} (histórico do perpétuo da Binance; open interest desde set 2020), {n} com open interest e {m} com funding; {k} desde 2022, contra os 11 de Cav. Ele lê pavios intradiários e fundos de swing de 10 dias na Coinalyze; aqui leem-se fechamentos diários da Binance, então alguns fundos diferem ou se deslocam semanas.",
  "The alt-share history is under a month long; the ranges apply once it is longer.": "O histórico da parcela de alts tem menos de um mês; os períodos passam a valer quando for mais longo."
 }

@@ -3093,11 +3093,14 @@
  "no readings yet": "henüz okuma yok",
  "7d mean": "7 g ort.",
  "daily reading": "günlük okuma",
- "{n} readings; daily since Nov 2026": "{n} okuma; Kas 2026'dan beri günlük",
+ "{n} readings; daily since Nov 2026": {
+  "one": "{n} okuma; Kas 2026'dan beri günlük",
+  "other": "{n} okuma; Kas 2026'dan beri günlük"
+ },
  "{n} daily readings": "{n} günlük okuma",
  "Reading": "Okuma",
  "A Binance-only approximation of Cav's (ID Theory) Coinalyze top-300 charts. Contracts: Binance BTCUSDT perpetual open interest in BTC (USD open interest deflated by price), indexed; daily from Sep 2020 (data.binance.vision archive, then fapi). Funding: BTCUSDT 7-day mean × 3 × 365, annualised %. Alt share: share of USD open interest (contracts × mark price) among the top 50 Binance USDT-M alts by USD open interest whose last funding is negative, a 7-day mean of daily readings.": "Cav'ın (ID Theory) Coinalyze top-300 grafiklerine yalnızca Binance ile bir yaklaşım. Kontratlar: Binance BTCUSDT perpetual açık pozisyonu BTC cinsinden (fiyatla arındırılmış USD açık pozisyon), endeksli; Eyl 2020'den itibaren günlük (data.binance.vision arşivi, sonra fapi). Fonlama: BTCUSDT 7 günlük ortalama × 3 × 365, yıllık %. Altcoin payı: USD açık pozisyona göre en büyük 50 Binance USDT-M altcoin arasında son fonlaması negatif olanların USD açık pozisyon (kontrat × mark fiyatı) payı, günlük okumaların 7 günlük ortalaması.",
- "Durable low: a daily close at least 15% under the prior 90-day high, not undercut for the next 60 days, then 15% higher. The red \"now\" point is not a confirmed low.": "Kalıcı dip: önceki 90 günün zirvesinin en az %15 altında bir günlük kapanış, sonraki 60 günde aşağı kırılmayan, ardından %15 yükselen. Kırmızı \"şimdi\" noktası onaylı bir dip değildir.",
+ "Durable low (Cav's rule, on daily closes): a close at least 15% under the prior 90-day high, not undercut for the next 60 days, and followed by a close at least 15% higher within those 60 days; a low within 60 days of the previous one is a retest and is not counted. The red \"now\" point is not a confirmed low.": "Kalıcı dip (Cav’in kuralı, günlük kapanışlarla): önceki 90 günün zirvesinin en az %15 altında, sonraki 60 gün içinde altına inilmeyen ve bu 60 gün içinde en az %15 daha yüksek bir kapanışın izlediği kapanış; öncekinden 60 gün içindeki bir dip yeniden testtir ve sayılmaz. Kırmızı \"şimdi\" noktası onaylanmış bir dip değildir.",
  "Into the pending low of {date}: contracts {oi}% and funding {pts} pts over 30 days, funding {at}% annualised.": "{date} tarihli bekleyen dibe doğru: 30 günde kontratlar %{oi} ve fonlama {pts} puan, fonlama yıllık %{at}.",
  "No pending low. Last 30 days to {date}: contracts {oi}% and funding {pts} pts, funding {at}% annualised.": "Bekleyen dip yok. {date} tarihine kadar son 30 gün: kontratlar %{oi} ve fonlama {pts} puan, fonlama yıllık %{at}.",
  "Of {n} durable lows with open interest, {k} saw contracts grow faster; of {m} with funding, {j} saw funding rise as far.": "Açık pozisyonu olan {n} kalıcı dipten {k} tanesinde kontratlar daha hızlı büyüdü; fonlaması olan {m} dipten {j} tanesinde fonlama bu kadar yükseldi.",
@@ -3115,13 +3118,18 @@
  "Live alt share loading (about 30 s)…": "Canlı altcoin payı yükleniyor (yaklaşık 30 sn)…",
  "Live alt share unavailable ({why}); archive readings only.": "Canlı altcoin payı yok ({why}); yalnızca arşiv okumaları.",
  "Binance's live open interest could not be read ({why}); contracts come from the archive only, which can lag, so recent lows may have no contracts change.": "Binance'in canlı açık pozisyonu okunamadı ({why}); kontratlar yalnızca gecikebilen arşivden geliyor, bu yüzden son diplerde kontrat değişimi olmayabilir.",
- "Mean of {n} readings": "{n} okumanın ortalaması",
+ "Mean of {n} readings": {
+  "one": "{n} okumanın ortalaması",
+  "other": "{n} okumanın ortalaması"
+ },
  "Alt OI on negative funding": "Negatif fonlamadaki altcoin OI",
  "live now: {v}%": "şimdi canlı: %{v}",
  "Binance daily closes could not be read, so only the alt share is drawn.": "Binance günlük kapanışları okunamadı, bu yüzden yalnızca altcoin payı çiziliyor.",
+ "Binance daily closes could not be read; the alt share is still loading.": "Binance günlük kapanışları okunamadı; altcoin payı hâlâ yükleniyor.",
+ "Neither Binance daily closes nor the alt share could be read, so there is nothing to draw.": "Ne Binance günlük kapanışları ne de altcoin payı okunabildi, bu yüzden çizilecek bir şey yok.",
  "Into the pending low of {date}: funding {pts} pts over 30 days, funding {at}% annualised; no contracts change (no open interest for those days).": "{date} tarihli bekleyen dibe doğru: 30 günde fonlama {pts} puan, fonlama yıllık %{at}; kontrat değişimi yok (o günler için açık pozisyon yok).",
  "No pending low. Last 30 days to {date}: funding {pts} pts, funding {at}% annualised; no contracts change (no open interest for those days).": "Bekleyen dip yok. {date} tarihine kadar son 30 gün: fonlama {pts} puan, fonlama yıllık %{at}; kontrat değişimi yok (o günler için açık pozisyon yok).",
  "Of {m} durable lows with funding, {j} saw funding rise as far.": "Fonlaması olan {m} kalıcı dipten {j} tanesinde fonlama bu kadar yükseldi.",
- "The sample differs from Cav's: lows here run from Dec 2019 (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding, where Cav's are 11 lows since 2022.": "Örneklem Cav'ınkinden farklı: buradaki dipler Ara 2019'dan başlıyor (Binance perpetual geçmişi; açık pozisyon Eyl 2020'den), {n} tanesi açık pozisyonlu ve {m} tanesi fonlamalı; Cav'ınkiler ise 2022'den beri 11 dip.",
+ "The sample differs from Cav's: lows here run from {first} (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding; {k} since 2022, against Cav's 11. He reads intraday wicks and 10-day swing lows on Coinalyze, this reads Binance daily closes, so some lows differ or shift by weeks.": "Örneklem Cav’inkinden farklı: buradaki dipler {first} tarihinden başlıyor (Binance sürekli vadeli geçmişi; açık pozisyon Eyl 2020’den itibaren), {n} tanesi açık pozisyonlu ve {m} tanesi fonlamalı; 2022’den beri {k}, Cav’de 11. O, Coinalyze’da gün içi fitilleri ve 10 günlük swing diplerini okur; burada Binance günlük kapanışları okunur, bu yüzden bazı dipler farklıdır ya da haftalarca kayar.",
  "The alt-share history is under a month long; the ranges apply once it is longer.": "Altcoin payı geçmişi bir aydan kısa; aralıklar geçmiş uzayınca geçerli olacak."
 }
