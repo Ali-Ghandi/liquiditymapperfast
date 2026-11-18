@@ -24,7 +24,7 @@ Add one **Positioning** metric tab that stacks three Binance-based approximation
   1. **OI vs funding into lows** — scatter: 30-day % change in BTC contracts (x) vs 30-day change in 7-day funding points (y) at each durable low; “now” highlighted.
   2. **Funding into lows** — scatter: 7-day annualised funding at the low (x) vs 30-day change in funding points (y); same event set; “now” highlighted.
   3. **Alt negative funding** — time series: OI-weighted share of Binance USDT-M alt perps (exclude BTC) with negative funding, 7-day average.
-- Footnote on the tab: Binance-only approximation of Cav’s Coinalyze top-300 charts; durable-low rule stated briefly; “now” may be unconfirmed.
+- Footnote on the tab: Binance-only approximation of Cav’s Coinalyze top-300 charts; durable-low rule stated briefly; “now” may be unconfirmed; how our sample of lows differs from Cav’s (ours from Dec 2019, Cav’s 11 lows since 2022); any loader that failed (archive, closes, live funding, live open interest, live alt share).
 - No new range chips required for charts 1–2 (event set is the full history we can compute). Chart 3 may reuse a simple range set (`1Y` / `2Y` / `ALL` from first available day) stored in metric prefs like other ranged tabs, or share one Positioning range — prefer one range control for chart 3 only so 1–2 stay stable.
 
 ## Durable low definition (charts 1–2)
@@ -34,7 +34,8 @@ Match Cav’s stated rule as closely as Binance daily closes allow:
 - Candidate swing low: daily close at least **15%** below the prior **90-day** high.
 - Not undercut for **60** calendar days after that low.
 - Followed by a **15%** rally from that low (confirmed durable low).
-- **Now**: the most recent candidate that meets the drawdown rule but is not yet confirmed (or the latest confirmed low if none pending). Mark it distinctly and label it unconfirmed when applicable.
+- **Now**: the most recent candidate that meets the drawdown rule but is not yet confirmed — its 60-day hold is not finished, or it is held but has not rallied 15% yet and no close since has gone under it (a *pending* low). If no low is pending, **now falls back to today**: the last closed day, with its own 30-day changes, the way Cav’s red dot is today’s reading (“not yet a confirmed low”). Re-highlighting the latest confirmed low would add nothing, since it is already plotted. Mark now distinctly; the headline says “Into the pending low of …” or “No pending low. Last 30 days to …”, and the readout says “pending low, unconfirmed” or “today, not a low”.
+- If now has no contracts change (no open interest for its days), it is left out of chart 1 and the headline makes no claim about how many lows saw contracts grow faster.
 
 Use Binance BTCUSDT perpetual daily closes for detection (same family as the 21 EMA tab). Document any unavoidable difference from Cav’s sample dates in the footnote if the event lists diverge.
 
@@ -55,7 +56,8 @@ Use Binance BTCUSDT perpetual daily closes for detection (same family as the 21 
 
 - Universe: Binance USDT-M perpetual symbols excluding BTCUSDT, capped to the top **N** by current OI (N chosen so load stays acceptable in the browser; start with N ≤ 50, raise only if tests show headroom).
 - Each day (UTC): among those markets, OI-weighted share where funding &lt; 0.
-- Display the **7-day trailing average** of that share as percent.
+- Display the **7-day trailing average** of that share as percent: the mean of the daily readings held in the 7 days ending on each day. Until a window holds 7 readings it is labelled “mean of *n* readings”, not “7d mean”.
+- The live reading (taken when the tab opens, on today’s UTC day) is drawn as its own red dot with its value; when it cannot be read, no red dot is drawn and the legend says it is unavailable.
 - If CORS or rate limits make live multi-symbol history too heavy, fall back to a prebuilt `alt-neg-funding.json` updated by the Pages workflow (same pattern as `put-flow.json`), still sourced only from Binance public endpoints — prefer live first; add the file only if live fails in real browsers.
 
 ## Data sources (no API keys)
