@@ -5,64 +5,63 @@
 
 import { DAY_MS } from './math.ts';
 
-/** A durable swing low: `t` is the UTC day-open ms of the low close. */
+/** A durable swing low: `t` is the UTC day-open ms of the day whose intraday low it is. */
 export interface DurableLow { t: number; confirmed: boolean }
 
 /**
- * Cav's durable lows (ID Theory's rule), on daily closes. Days that closed ≥15% under the prior 90-day high are candidates; among each run
- * of such days, the minimum close is the low. It is confirmed when no close in the next 60 days goes under it and some close within
- * those 60 days is ≥15% higher. A low whose 60 days are not over yet, with no close under it so far, is returned unconfirmed ("now"),
- * at most one (the latest); once its 60 days are over without the rally it has failed and is dropped. A low within 60 days of the
- * previous accepted (confirmed or pending) low is a retest of the same episode and is not counted. Cav reads wicks (intraday highs and
- * lows) on Coinalyze; this reads Binance daily closes, so dates can differ by days.
+ * Cav's (ID Theory) durable lows, coded from his footnote on daily candles' wicks (intraday highs and lows):
+ *  - a swing low is a day whose low is the lowest of its 10 days (strictly under the prior 9 days' lows, so a tie keeps the first);
+ *  - it is a candidate when that low is at least 15% under the highest intraday high of the prior 90 days;
+ *  - it is confirmed when no intraday low goes under it in the next 60 days (through t + 60d) and an intraday high reaches +15% within
+ *    those 60 days (his footnote says a close; on Binance BTCUSDT since 2019 both give the same lows);
+ *  - a candidate within 60 days (inclusive) of the previous accepted low is a retest of the same episode and is not counted.
+ * Every swing low is tested in turn, so a durable low early in a long drawdown counts even when a deeper low comes later. A low whose 60
+ * days are not over yet, with no low under it so far, is pending: returned unconfirmed ("now"), at most one (the latest), and it counts as
+ * accepted for the retest rule. One whose 60 days ended without the rally has failed and is dropped.
  */
-export function durableLows(time: ArrayLike<number>, close: ArrayLike<number>, now?: number): DurableLow[] {
-  const n = Math.min(time.length, close.length);
+export function durableLows(time: ArrayLike<number>, high: ArrayLike<number>, low: ArrayLike<number>, now?: number): DurableLow[] {
+  const n = Math.min(time.length, high.length, low.length);
   const end = now ?? (n ? time[n - 1]! : NaN);
-  const candidate: boolean[] = Array(n).fill(false);
-  for (let i = 90; i < n; i++) {
-    if (time[i]! > end) break;
-    const px = close[i]!;
-    if (!Number.isFinite(px)) continue;
-    let high = -Infinity;
-    for (let j = i - 90; j < i; j++) {
-      const v = close[j]!;
-      if (Number.isFinite(v) && v > high) high = v;
-    }
-    candidate[i] = high > 0 && px <= high * 0.85;
-  }
-
   const confirmed: DurableLow[] = [];
   let latestUnconfirmed: DurableLow | undefined, lastAccepted = -Infinity;
-  let i = 0;
-  while (i < n) {
-    if (!candidate[i]) { i++; continue; }
-    let runEnd = i, minI = i, minPx = close[i]!;
-    for (let j = i + 1; j < n && candidate[j]; j++) {
-      runEnd = j;
-      const px = close[j]!;
-      if (px < minPx) { minPx = px; minI = j; }
-    }
-    i = runEnd + 1;
-    const t = time[minI]!;
-    const holdEnd = t + 60 * DAY_MS;
-    if (!Number.isFinite(minPx) || minPx <= 0) continue;
+  for (let i = 90; i < n; i++) {
+    const t = time[i]!, px = low[i]!;
+    if (t > end) break;
+    if (!Number.isFinite(px) || px <= 0) continue;
+    let swing = true;
+    for (let j = i - 9; j < i && swing; j++) if (low[j]! <= px) swing = false;
+    if (!swing) continue;
+    let top = -Infinity;
+    for (let j = i - 90; j < i; j++) { const v = high[j]!; if (Number.isFinite(v) && v > top) top = v; }
+    if (!(top > 0 && px <= top * 0.85)) continue;
     // A retest of the episode of the previous accepted low (within 60 days, inclusive like the hold window).
     if (t - lastAccepted <= 60 * DAY_MS) continue;
+    const holdEnd = t + 60 * DAY_MS;
     let held = true, covered = false, rallied = false;
-    for (let j = 0; j < n; j++) {
-      const tj = time[j]!, px = close[j]!;
-      if (tj <= t || tj > end || !Number.isFinite(px)) continue;
+    for (let j = i + 1; j < n; j++) {
+      const tj = time[j]!;
+      if (tj > end) break;
       if (tj >= holdEnd) covered = true;
-      if (tj > holdEnd) continue;
-      if (px < minPx) held = false;
-      if (px >= minPx * 1.15) rallied = true;
+      if (tj > holdEnd) break;
+      if (low[j]! < px) held = false;
+      if (high[j]! >= px * 1.15) rallied = true;
     }
     if (!held) continue;
     if (covered && rallied) { confirmed.push({ t, confirmed: true }); lastAccepted = t; }
     else if (!covered) { latestUnconfirmed = { t, confirmed: false }; lastAccepted = t; }
   }
   return latestUnconfirmed ? [...confirmed, latestUnconfirmed] : confirmed;
+}
+
+/** Cav's sample start: his Coinalyze contracts index is 100 on 29 Jul 2022, so his lows can be compared with ours from Aug 2022. */
+export const CAV_SAMPLE_START = Date.UTC(2022, 7, 1);
+/** The months of Cav's 11 durable lows (ID Theory's charts, Nov 2026), UTC year-month. */
+export const CAV_LOW_MONTHS: readonly string[] = ['2022-11', '2023-03', '2023-06', '2023-08', '2024-01', '2024-05', '2024-08', '2025-04', '2025-11', '2026-02', '2026-07'];
+
+/** How many of `months` (UTC "YYYY-MM") hold at least one of the lows `times`. */
+export function monthsMatched(times: readonly number[], months: readonly string[]): number {
+  const held = new Set(times.map(t => new Date(t).toISOString().slice(0, 7)));
+  return months.filter(m => held.has(m)).length;
 }
 
 /**

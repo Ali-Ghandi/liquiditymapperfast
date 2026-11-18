@@ -46,8 +46,8 @@
 
 **Interfaces:**
 - Produces:
-  - `export interface DurableLow { t: number; confirmed: boolean }` — `t` is UTC day-open ms of the low close
-  - `export function durableLows(time: ArrayLike<number>, close: ArrayLike<number>, now?: number): DurableLow[]`
+  - `export interface DurableLow { t: number; confirmed: boolean }` — `t` is UTC day-open ms of the low’s day
+  - `export function durableLows(time: ArrayLike<number>, high: ArrayLike<number>, low: ArrayLike<number>, now?: number): DurableLow[]` (revised 2026-11-19: daily intraday highs and lows)
   - `export function contractsIndex(oi: ArrayLike<number>, price: ArrayLike<number>, base = 100): Float64Array` — `oi[i]*base*price[0]/price[i]/oi[0]` when oi[0]>0 and price>0; else NaN
   - `export function funding7dAnnualised(time: ArrayLike<number>, rate: ArrayLike<number>, dayTimes: ArrayLike<number>): Float64Array` — for each day in `dayTimes`, mean of funding rates with `time` in `[day, day+DAY_MS)` over the last 7 days of **funding events**, annualised as `mean * 3 * 365 * 100` (Binance 3 fundings/day → percent annualised). Days with no rates → NaN
   - `export function pctChange(series: ArrayLike<number>, times: ArrayLike<number>, at: number, lookbackDays: number): number` — value at `at` vs value at `at - lookbackDays*DAY_MS` (nearest ≤), as percent; NaN if missing
@@ -73,7 +73,7 @@ test('durableLows: 15% under 90d high, held 60d, then +15% is confirmed; a fresh
     else if (i < 160) close.push(80);
     else close.push(92);
   }
-  const lows = durableLows(time, close, t0 + 199 * DAY);
+  const lows = durableLows(time, close, close, t0 + 199 * DAY); // high = low = close: candles without wicks
   assert.equal(lows.filter(l => l.confirmed).length, 1);
   assert.equal(lows.find(l => l.confirmed)!.t, t0 + 100 * DAY);
 });
@@ -117,11 +117,12 @@ Expected: FAIL (module or exports missing).
 Create `src/app/metrics/positioning.ts` implementing the interfaces above.
 
 `durableLows` algorithm:
-1. For each day `i`, compute prior 90-day high over `close[i-90..i-1]` (need ≥90 prior days).
-2. Candidate if `close[i] <= high * 0.85`.
-3. Among runs of candidates, take the minimum close’s day as the low `t`.
-4. Skip the low if it is within 60 days (inclusive) of the previous accepted low — a retest of the same episode (Cav’s rule).
-5. Confirmed if every close in `(t, t+60d]` is `>= close_at_t` and some close in that same window reaches `close_at_t * 1.15`. If the window is not over yet and no close has gone under the low, it is pending (unconfirmed); if the window is over without the rally, the low has failed and is dropped. Confirmed and pending lows are the accepted ones for step 4.
+(Revised 2026-11-19: Cav’s rule literally, on daily wicks.)
+1. For each day `i` (need ≥90 prior days), it is a 10-day swing low if `low[i] < low[j]` for every `j` in `i-9..i-1`.
+2. Candidate if also `low[i] <= 0.85 * max(high[i-90..i-1])` (prior 90-day intraday high). Every swing low is tested, in time order.
+3. Skip the candidate if it is within 60 days (inclusive) of the previous accepted low — a retest of the same episode (Cav’s rule).
+4. Confirmed if every intraday low in `(t, t+60d]` is `>= low[i]` and some intraday high in that same window reaches `low[i] * 1.15`.
+5. If the window is not over yet and no low has gone under it, it is pending (unconfirmed); if the window is over without the rally, it has failed and is dropped. Confirmed and pending lows are the accepted ones for step 3.
 6. Return confirmed lows plus at most one latest pending low (“now”).
 
 - [ ] **Step 4: Run tests to verify they pass**

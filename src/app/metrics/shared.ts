@@ -5,7 +5,7 @@
 import { t } from '../i18n.ts';
 import type { Colours } from './plot.ts';
 import { DAY_MS } from './math.ts';
-import { binanceCloses, type Series } from './data.ts';
+import { binanceCloses, type Candles } from './data.ts';
 
 export const STALE_MS = 5 * 60_000;
 
@@ -18,10 +18,10 @@ export const axis = (v: number, step: number): string => v.toFixed(step < 1 ? 1 
 export const signed = (v: number, d = 1): string => (Number.isFinite(v) ? `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(d)}` : '–');
 
 /** Only candles that have closed: a candle still under way is not a close. */
-export function closed(s: Series, step: number, now = Date.now()): Series {
+export function closed(s: Candles, step: number, now = Date.now()): Candles {
   let n = s.time.length;
   while (n > 0 && s.time[n - 1]! + step > now) n--;
-  return { time: s.time.slice(0, n), close: s.close.slice(0, n) };
+  return { time: s.time.slice(0, n), close: s.close.slice(0, n), high: s.high.slice(0, n), low: s.low.slice(0, n) };
 }
 
 /** A cache of one loaded series that covers back to `start`, read again after five minutes. */

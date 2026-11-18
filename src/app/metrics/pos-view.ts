@@ -8,7 +8,7 @@ import { t, tn } from '../i18n.ts';
 import type { Chart } from './plot.ts';
 import { DAY_MS } from './math.ts';
 import { binanceFunding, binanceOiDaily, liveAltNegShare, positioningHistory } from './data.ts';
-import { altNegSeries, contractsOnGrid, durableLows, fundingOnGrid, lowEventPoints, mergeOiByDay, nowComparison, nowLow, type AltNegSeries, type LowEvent, type PositioningFile } from './positioning.ts';
+import { CAV_LOW_MONTHS, CAV_SAMPLE_START, altNegSeries, contractsOnGrid, durableLows, fundingOnGrid, lowEventPoints, mergeOiByDay, monthsMatched, nowComparison, nowLow, type AltNegSeries, type LowEvent, type PositioningFile } from './positioning.ts';
 import { Cached, PERP_START, STALE_MS, axis, dailyPerp, f1, idx, progress, signed, type Palette } from './shared.ts';
 import { dateLabel, dayLabel } from './ticks.ts';
 
@@ -52,7 +52,10 @@ const altLive = (() => {
 
 interface PosData { points: LowEvent[]; now: LowEvent | null; pending: boolean; file: PositioningFile | null; notes: string[]; hasOi: boolean; hasFunding: boolean; closes: boolean }
 
-/** Charts A and B's events: durable lows on Binance perpetual daily closes, with OI (archive over the API's month) and 7-day funding. */
+/**
+ * Charts A and B's events: durable lows on Binance perpetual daily candles (wicks), each measured on the low's day: contracts and 7-day
+ * funding changes over the 30 days into it (OI from the archive, then the API's month).
+ */
 async function posData(force: boolean): Promise<PosData> {
   const [day, rates, oi, file] = await Promise.allSettled([dailyPerp.get(PERP_START, force), fundingRates.get(FUNDING_START, force), oiRecent.get(0, force), posArchive.get(0, force)]);
   const archive = file.status === 'fulfilled' ? file.value : null, notes: string[] = [];
@@ -64,16 +67,15 @@ async function posData(force: boolean): Promise<PosData> {
   }
   if (rates.status === 'rejected') notes.push(t('Live funding could not be read; the archive\'s daily funding is used.'));
   if (oi.status === 'rejected') notes.push(t('Binance\'s live open interest could not be read ({why}); contracts come from the archive only, which can lag, so recent lows may have no contracts change.', { why: why(oi.reason) }));
-  const { time, close } = day.value;
+  const { time, close, high, low } = day.value;
   const funding = fundingOnGrid(time, rates.status === 'fulfilled' ? rates.value : null, archive);
   const contracts = contractsOnGrid(time, close, mergeOiByDay(archive, oi.status === 'fulfilled' ? oi.value : null));
-  const { lows, pending } = nowLow(durableLows(time, close), time[time.length - 1]!);
+  const { lows, pending } = nowLow(durableLows(time, high, low), time[time.length - 1]!);
   const all = lowEventPoints(lows, time, contracts, funding);
   const now = all.find(p => !p.confirmed) ?? null;
   return { points: all.filter(p => p.confirmed), now, pending, file: archive, notes, hasOi: contracts.some(Number.isFinite), hasFunding: funding.some(Number.isFinite), closes: true };
 }
 
-const SINCE_2022 = Date.UTC(2022, 0, 1);
 const pctAxis = (v: number, step: number): string => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(step < 1 ? 1 : 0)}%`;
 const ptsAxis = (v: number, step: number): string => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(step < 1 ? 1 : 0)}`;
 
@@ -191,11 +193,11 @@ function headline(d: PosData, alt: 'drawn' | 'loading' | 'failed'): string {
 }
 
 function footnote(d: PosData, extra: string[]): string {
-  const withOi = d.points.filter(p => Number.isFinite(p.oiPct)).length, since = d.points.filter(p => p.t >= SINCE_2022).length;
+  const withOi = d.points.filter(p => Number.isFinite(p.oiPct)).length, fromCav = d.points.filter(p => p.t >= CAV_SAMPLE_START).map(p => p.t);
   return [
     t('A Binance-only approximation of Cav\'s (ID Theory) Coinalyze top-300 charts. Contracts: Binance BTCUSDT perpetual open interest in BTC (USD open interest deflated by price), indexed; daily from Sep 2020 (data.binance.vision archive, then fapi). Funding: BTCUSDT 7-day mean × 3 × 365, annualised %. Alt share: share of USD open interest (contracts × mark price) among the top 50 Binance USDT-M alts by USD open interest whose last funding is negative, a 7-day mean of daily readings.'),
-    t('Durable low (Cav\'s rule, on daily closes): a close at least 15% under the prior 90-day high, not undercut for the next 60 days, and followed by a close at least 15% higher within those 60 days; a low within 60 days of the previous one is a retest and is not counted. The red "now" point is not a confirmed low.'),
-    ...(d.points.length ? [t('The sample differs from Cav\'s: lows here run from {first} (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding; {k} since 2022, against Cav\'s 11. He reads intraday wicks and 10-day swing lows on Coinalyze, this reads Binance daily closes, so some lows differ or shift by weeks.', { first: dateLabel(d.points[0]!.t), n: withOi, m: d.points.length, k: since })] : []),
+    t('Durable low (Cav\'s rule, on daily wicks): a day whose intraday low is the lowest of its 10 days and at least 15% under the prior 90-day intraday high, with no intraday low under it for the next 60 days and an intraday high at least 15% above it within those 60 days; a low within 60 days of the previous one is a retest and is not counted. The red "now" point is not a confirmed low.'),
+    ...(d.points.length ? [t('Sample: lows here run from {first} (Binance perpetual history; open interest from Sep 2020), {n} with open interest and {m} with funding. From Cav\'s sample start (Aug 2022) there are {k} here against his 11, and {j} of his 11 fall in the same month as one here. He reads Coinalyze\'s aggregated candles and this reads Binance\'s BTCUSDT perpetual, so a low can differ by a day or show on one side only.', { first: dateLabel(d.points[0]!.t), n: withOi, m: d.points.length, k: fromCav.length, j: monthsMatched(fromCav, CAV_LOW_MONTHS) })] : []),
     ...d.notes, ...extra,
   ].join(' ');
 }

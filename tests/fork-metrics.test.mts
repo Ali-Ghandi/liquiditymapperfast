@@ -6,8 +6,8 @@ import { ALL_START, DEFAULT_RANGE, METRIC_KEY, METRIC_TABS, RANGES, SOURCE_START
 import { dayTicks, niceTicks, timeTicks } from '../src/app/metrics/ticks.ts';
 import { nearest } from '../src/app/metrics/plot.ts';
 import {
-  altCandidates, altNegSeries, altNegShare, contractsIndex, contractsOnGrid, dailyOiFromMetrics, durableLows, funding7dAnnualised, fundingOnGrid,
-  lowEventPoints, mergeOiByDay, nowComparison, nowLow, parsePositioning, pctChange, pointChange, usdtPerpAlts, type PositioningFile,
+  CAV_LOW_MONTHS, CAV_SAMPLE_START, altCandidates, altNegSeries, altNegShare, contractsIndex, contractsOnGrid, dailyOiFromMetrics, durableLows, funding7dAnnualised, fundingOnGrid,
+  lowEventPoints, mergeOiByDay, monthsMatched, nowComparison, nowLow, parsePositioning, pctChange, pointChange, usdtPerpAlts, type PositioningFile,
 } from '../src/app/metrics/positioning.ts';
 
 const close = (a: number, b: number, eps: number, what = ''): void => assert.ok(Math.abs(a - b) <= eps, `${what} ${a} is not within ${eps} of ${b}`);
@@ -273,7 +273,7 @@ test('durableLows: 15% under 90d high, held 60d, then +15% is confirmed; a fresh
     else if (i < 200) close.push(92);
     else close.push(70);
   }
-  const lows = durableLows(time, close, t0 + 219 * DAY);
+  const lows = durableLows(time, close, close, t0 + 219 * DAY);
   assert.equal(lows.filter(l => l.confirmed).length, 1);
   assert.equal(lows.find(l => l.confirmed)!.t, t0 + 100 * DAY);
   const fresh = lows.filter(l => !l.confirmed);
@@ -297,9 +297,9 @@ test('durableLows: a low held 60 days that never rallied 15% has failed, so it i
   const t0 = Date.UTC(2024, 0, 1);
   const time = Array.from({ length: 200 }, (_, i) => t0 + i * DAY_MS);
   // 100 days at 100, then 80 for 100 days: held 60 days but never +15 %.
-  assert.deepEqual(durableLows(time, time.map((_, i) => (i < 100 ? 100 : 80))), []);
+  assert.deepEqual(flat(time, time.map((_, i) => (i < 100 ? 100 : 80))), []);
   // Still inside its 60 days (day 150 is 50 days after the low): pending.
-  assert.deepEqual(durableLows(time.slice(0, 151), time.slice(0, 151).map((_, i) => (i < 100 ? 100 : 80))), [{ t: t0 + 100 * DAY_MS, confirmed: false }]);
+  assert.deepEqual(flat(time.slice(0, 151), time.slice(0, 151).map((_, i) => (i < 100 ? 100 : 80))), [{ t: t0 + 100 * DAY_MS, confirmed: false }]);
 });
 
 test('durableLows: the +15% rally must come within the 60-day hold window (Cav: "within those 60 days")', () => {
@@ -307,26 +307,60 @@ test('durableLows: the +15% rally must come within the 60-day hold window (Cav: 
   const time = Array.from({ length: 220 }, (_, i) => t0 + i * DAY_MS);
   // Low 80 on day 100, held; 92 (+15 %) only from day 161, one day after the window closed.
   const late = time.map((_, i) => (i < 100 ? 100 : i <= 160 ? 80 : 92));
-  assert.deepEqual(durableLows(time, late), []);
+  assert.deepEqual(flat(time, late), []);
   // The same rally on day 160 (the window's last day) confirms it.
   const onTime = time.map((_, i) => (i < 100 ? 100 : i < 160 ? 80 : 92));
-  assert.deepEqual(durableLows(time, onTime), [{ t: t0 + 100 * DAY_MS, confirmed: true }]);
+  assert.deepEqual(flat(time, onTime), [{ t: t0 + 100 * DAY_MS, confirmed: true }]);
+});
+
+test('monthsMatched counts the reference months that hold one of the lows, each month once; Cav\'s list starts after his sample start', () => {
+  const at = (y: number, m: number, d: number): number => Date.UTC(y, m - 1, d);
+  assert.equal(monthsMatched([at(2022, 11, 21), at(2023, 3, 10), at(2023, 3, 28), at(2024, 10, 10)], ['2022-11', '2023-03', '2023-06']), 2);
+  assert.equal(monthsMatched([], ['2022-11']), 0);
+  assert.equal(CAV_LOW_MONTHS.length, 11);
+  assert.ok(CAV_LOW_MONTHS.every(m => Date.UTC(+m.slice(0, 4), +m.slice(5) - 1, 1) >= CAV_SAMPLE_START));
+});
+
+/** Candles with no wicks (high = low = close), for the tests that are about the rule's timing. */
+const flat = (time: ArrayLike<number>, close: ArrayLike<number>) => durableLows(time, close, close);
+
+test('durableLows: a qualifying 10-day swing low counts even when a deeper low comes more than 60 days later in the same drawdown', () => {
+  const t0 = Date.UTC(2024, 0, 1);
+  const time = Array.from({ length: 200 }, (_, i) => t0 + i * DAY_MS);
+  // Day 100: low 80 (20% under 100). It holds (lows 84 after it) and an intraday high of 93 (+16%) on day 130 rallies it. Price stays 15%
+  // under the old high throughout (closes 84), so a one-low-per-drawdown rule would only see the deeper low of 70 on day 175.
+  const low = time.map((_, i) => (i < 100 ? 100 : i === 100 ? 80 : i < 175 ? 84 : i === 175 ? 70 : 72));
+  const high = time.map((_, i) => (i === 130 ? 93 : low[i]!));
+  assert.deepEqual(durableLows(time, high, low), [{ t: t0 + 100 * DAY_MS, confirmed: true }, { t: t0 + 175 * DAY_MS, confirmed: false }]);
+});
+
+test('durableLows reads wicks: the 90-day high and the rally are intraday highs, and a wick under the low within 60 days breaks it', () => {
+  const t0 = Date.UTC(2024, 0, 1);
+  const time = Array.from({ length: 220 }, (_, i) => t0 + i * DAY_MS);
+  // Closes and lows at 90 for 100 days, with one wick to 100 on day 50: day 100's low of 80 is 20% under that intraday high (only 11%
+  // under the closes). Lows 82 / highs 84 after it, a high of 93 (+16%) on day 140, then 90 from day 160.
+  const low = time.map((_, i) => (i < 100 ? 90 : i === 100 ? 80 : i < 160 ? 82 : 90));
+  const high = time.map((_, i) => (i === 50 ? 100 : i === 140 ? 93 : i >= 100 && i < 160 ? 84 : 90));
+  assert.deepEqual(durableLows(time, high, low), [{ t: t0 + 100 * DAY_MS, confirmed: true }]);
+  // A wick to 79 on day 130 undercuts it (no close needs to): day 100 fails, and day 130 is itself a swing low that holds and rallies.
+  const wick = low.map((v, i) => (i === 130 ? 79 : v));
+  assert.deepEqual(durableLows(time, high, wick), [{ t: t0 + 130 * DAY_MS, confirmed: true }]);
 });
 
 test('durableLows: a qualifying low within 60 days of the previous accepted low is a retest of the same episode and is not counted', () => {
   const t0 = Date.UTC(2024, 0, 1);
   const time = Array.from({ length: 260 }, (_, i) => t0 + i * DAY_MS);
-  // Low 80 on day 100; 86 (not 15 % under the high) on days 101-103; a second low of 82 on day 104 (4 days later), then 95 from day 130.
-  // Both qualify on their own (held 60 days, +15 % within them); the second is a retest.
-  const px = (i: number): number => (i < 100 ? 100 : i === 100 ? 80 : i < 104 ? 86 : i === 104 ? 82 : i < 130 ? 84 : 95);
+  // Low 80 on day 100; 90 on days 101-114; a second 10-day swing low of 82 on day 115 (15 days later; a swing low is the lowest of its
+  // 10 days, so a retest of a held low is at least 10 days on), then 95 from day 130. Both qualify on their own; the second is a retest.
+  const px = (i: number): number => (i < 100 ? 100 : i === 100 ? 80 : i < 115 ? 90 : i === 115 ? 82 : i < 130 ? 84 : 95);
   const close = time.map((_, i) => px(i));
-  assert.deepEqual(durableLows(time, close), [{ t: t0 + 100 * DAY_MS, confirmed: true }]);
+  assert.deepEqual(flat(time, close), [{ t: t0 + 100 * DAY_MS, confirmed: true }]);
   // A retest still inside its own window is not "now" either.
-  assert.deepEqual(durableLows(time.slice(0, 120), close.slice(0, 120)), [{ t: t0 + 100 * DAY_MS, confirmed: false }]);
+  assert.deepEqual(flat(time.slice(0, 120), close.slice(0, 120)), [{ t: t0 + 100 * DAY_MS, confirmed: false }]);
   // "Within 60 days" is inclusive, like the hold window: a second low 60 days on is a retest, 61 days on is a new low.
   const second = (gap: number) => time.map((_, i) => (i < 100 ? 100 : i === 100 ? 80 : i === 100 + gap ? 81 : 96));
-  assert.deepEqual(durableLows(time, second(60)), [{ t: t0 + 100 * DAY_MS, confirmed: true }]);
-  assert.deepEqual(durableLows(time, second(61)), [{ t: t0 + 100 * DAY_MS, confirmed: true }, { t: t0 + 161 * DAY_MS, confirmed: true }]);
+  assert.deepEqual(flat(time, second(60)), [{ t: t0 + 100 * DAY_MS, confirmed: true }]);
+  assert.deepEqual(flat(time, second(61)), [{ t: t0 + 100 * DAY_MS, confirmed: true }, { t: t0 + 161 * DAY_MS, confirmed: true }]);
 });
 
 test('funding7dAnnualised means the last 7 days of funding events and annualises ×3×365×100', () => {

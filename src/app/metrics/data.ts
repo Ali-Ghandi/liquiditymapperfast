@@ -10,6 +10,8 @@ import { altCandidates, altNegShare, parsePositioning, usdtPerpAlts, type Positi
 import { addTrade, parsePutFlow, readTrade, type FlowDay, type PutFlowFile } from './putflow.ts';
 
 export interface Series { time: Float64Array; close: Float64Array }
+/** Binance candles: a series of closes with each candle's intraday high and low (the Positioning tab's durable lows read wicks). */
+export interface Candles extends Series { high: Float64Array; low: Float64Array }
 
 async function getJson(url: string, timeout = 20_000): Promise<unknown> {
   let last: unknown;
@@ -36,8 +38,8 @@ async function pool<T>(jobs: (() => Promise<T>)[], limit: number, progress?: (do
 
 const KLINE_HOSTS = { spot: ['https://api.binance.com/api/v3/klines', 'https://data-api.binance.vision/api/v3/klines'], perp: ['https://fapi.binance.com/fapi/v1/klines'] } as const;
 
-/** Binance closed and forming candles of BTCUSDT from `start` to now, in time order: open time and close. */
-export async function binanceCloses(market: 'spot' | 'perp', interval: '1h' | '1d', start: number, progress?: (done: number, total: number) => void): Promise<Series> {
+/** Binance closed and forming candles of BTCUSDT from `start` to now, in time order: open time, close, intraday high and low. */
+export async function binanceCloses(market: 'spot' | 'perp', interval: '1h' | '1d', start: number, progress?: (done: number, total: number) => void): Promise<Candles> {
   const step = interval === '1h' ? HOUR_MS : DAY_MS, limit = market === 'spot' ? 1000 : 1500, now = Date.now();
   const starts: number[] = [];
   for (let s = Math.floor(start / step) * step; s <= now; s += step * limit) starts.push(s);
@@ -51,17 +53,17 @@ export async function binanceCloses(market: 'spot' | 'perp', interval: '1h' | '1
     throw error;
   };
   const pages = await pool(starts.map(s => () => page(s)), 4, progress);
-  const time: number[] = [], close: number[] = [];
+  const time: number[] = [], close: number[] = [], high: number[] = [], low: number[] = [];
   for (const body of pages) {
     if (!Array.isArray(body)) throw new Error('Binance: unexpected candles');
     for (const row of body) {
       if (!Array.isArray(row)) continue;
-      const t = Number(row[0]), c = Number(row[4]);
-      if (Number.isFinite(t) && c > 0 && (!time.length || t > time[time.length - 1]!)) { time.push(t); close.push(c); }
+      const t = Number(row[0]), c = Number(row[4]), h = Number(row[2]), l = Number(row[3]);
+      if (Number.isFinite(t) && c > 0 && (!time.length || t > time[time.length - 1]!)) { time.push(t); close.push(c); high.push(h > 0 ? h : NaN); low.push(l > 0 ? l : NaN); }
     }
   }
   if (!time.length) throw new Error('Binance: no candles');
-  return { time: Float64Array.from(time), close: Float64Array.from(close) };
+  return { time: Float64Array.from(time), close: Float64Array.from(close), high: Float64Array.from(high), low: Float64Array.from(low) };
 }
 
 /** Deribit's DVOL (BTC 30-day implied volatility index) hourly or daily from `start` to now: candle start time and close. */

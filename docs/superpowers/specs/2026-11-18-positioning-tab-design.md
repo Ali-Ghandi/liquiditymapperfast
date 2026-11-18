@@ -24,22 +24,25 @@ Add one **Positioning** metric tab that stacks three Binance-based approximation
   1. **OI vs funding into lows** — scatter: 30-day % change in BTC contracts (x) vs 30-day change in 7-day funding points (y) at each durable low; “now” highlighted.
   2. **Funding into lows** — scatter: 7-day annualised funding at the low (x) vs 30-day change in funding points (y); same event set; “now” highlighted.
   3. **Alt negative funding** — time series: OI-weighted share of Binance USDT-M alt perps (exclude BTC) with negative funding, 7-day average.
-- Footnote on the tab: Binance-only approximation of Cav’s Coinalyze top-300 charts; durable-low rule stated briefly; “now” may be unconfirmed; how our sample of lows differs from Cav’s (ours from the first low in the data, Dec 2019; counts with open interest, with funding and since 2022 all computed from the data, against Cav’s 11 since 2022; closes here, wicks and 10-day swing lows there); any loader that failed (archive, closes, live funding, live open interest, live alt share).
+- Footnote on the tab: Binance-only approximation of Cav’s Coinalyze top-300 charts; durable-low rule stated briefly; “now” may be unconfirmed; how our sample of lows differs from Cav’s (ours from the first low in the data, Dec 2019; counts with open interest and with funding; from his sample start, Aug 2022, our count against his 11 and how many of his months hold one of ours, all computed from the data; Coinalyze aggregate candles there, Binance perpetual here); any loader that failed (archive, closes, live funding, live open interest, live alt share).
 - No new range chips required for charts 1–2 (event set is the full history we can compute). Chart 3 may reuse a simple range set (`1Y` / `2Y` / `ALL` from first available day) stored in metric prefs like other ranged tabs, or share one Positioning range — prefer one range control for chart 3 only so 1–2 stay stable. While the alt-share history is under a month long the chips are disabled, with a visible note under them saying why (not only a tooltip, so it reads on a phone).
 
 ## Durable low definition (charts 1–2)
 
-Adopt Cav’s rule exactly (decided 2026-11-19), as far as Binance daily closes allow. His footnote: “Durable low = a swing low (lowest daily low of the prior 10 days) at least 15% below the prior 90-day intraday high, not undercut by any wick for the next 60 days, and followed by a close at least 15% higher within those 60 days; a qualifying low within 60 days of the previous one is a retest of the same episode and is not counted.”
+Implement Cav’s rule literally, on daily wicks (decided 2026-11-19, after the round-3 review). His footnote: “Durable low = a swing low (lowest daily low of the prior 10 days) at least 15% below the prior 90-day intraday high, not undercut by any wick for the next 60 days, and followed by a close at least 15% higher within those 60 days; a qualifying low within 60 days of the previous one is a retest of the same episode and is not counted.”
 
-- Candidate swing low: daily close at least **15%** below the prior **90-day** high (highest close); each run of such days gives one low, at its minimum close.
-- Not undercut (no close below it) for **60** calendar days after that low, inclusive.
-- Followed by a close at least **15%** higher **within those 60 days** (confirmed durable low). A low that held 60 days without that rally has **failed**: it is neither confirmed nor pending.
+Input: Binance BTCUSDT perpetual daily candles (open time, high, low, close) from the klines the tab already loads.
+
+- **Candidate**: every 10-day swing low, i.e. a day whose intraday low is strictly under the lows of the prior 9 days (the lowest of its 10 days; a tie keeps the first), and at least **15%** under the highest intraday high of the prior **90** days. Every swing low is tested in turn, so a durable low early in a long drawdown counts even if a deeper low comes more than 60 days later.
+- **Hold**: no intraday low under it for **60** calendar days after it, inclusive.
+- **Rally**: an intraday high at least **15%** above it **within those 60 days** (confirmed durable low). Cav’s footnote says a close; on Binance BTCUSDT since 2019 a close and an intraday high give the same lows. A low that held 60 days without that rally has **failed**: neither confirmed nor pending.
 - **Retests**: a low within 60 days (inclusive) of the previous accepted low — confirmed, or the pending one — is the same episode and is not counted.
-- Remaining differences from Cav: closes instead of wicks and intraday highs, and runs of drawdown days instead of 10-day swing lows. On data to 2026-11-17 this gives 11 confirmed lows since 2022, the same count as Cav’s, but not the same set: ours has Jan 2022 and lacks his Nov 2025 (on closes its rally falls just short of 15%), and three dates shift by weeks (Sep vs Aug 2023, Sep vs Aug 2024, Jun 30 vs Jul 2026).
-- **Now**: the most recent low whose 60-day window is still open — no close under it so far, not yet confirmed (a *pending* low). If no low is pending, **now falls back to today**: the last closed day, with its own 30-day changes, the way Cav’s red dot is today’s reading (“not yet a confirmed low”). Re-highlighting the latest confirmed low would add nothing, since it is already plotted. Mark now distinctly; the headline says “Into the pending low of …” or “No pending low. Last 30 days to …”, and the readout says “pending low, unconfirmed” or “today, not a low”.
+- **Event metrics** (contracts and funding changes, funding level) are measured on the low’s day as before: the 30 days into it on the daily grid.
+- **Result** on data to 2026-11-17: 23 confirmed lows from Dec 2019, plus a pending 2026-11-15. From Cav’s sample start (his contracts index is 100 on 29 Jul 2022, so Aug 2022) there are 12: all 11 of Cav’s months (Nov-22, Mar-23, Jun-23, Aug-23, Jan-24, May-24, Aug-24, Apr-25, Nov-25, Feb-26, Jul-26) plus one extra, 2024-10-10. The remaining difference is the venue: he reads Coinalyze’s aggregated candles, we read Binance’s perpetual, so a low can differ by a day or appear on one side only. The footnote compares from Aug 2022 and says how many of his months hold one of ours, both computed from the data.
+- **Now**: the most recent low whose 60-day window is still open — no intraday low under it so far, not yet confirmed (a *pending* low). If no low is pending, **now falls back to today**: the last closed day, with its own 30-day changes, the way Cav’s red dot is today’s reading (“not yet a confirmed low”). Re-highlighting the latest confirmed low would add nothing, since it is already plotted. Mark now distinctly; the headline says “Into the pending low of …” or “No pending low. Last 30 days to …”, and the readout says “pending low, unconfirmed” or “today, not a low”.
 - If now has no contracts change (no open interest for its days), it is left out of chart 1 and the headline makes no claim about how many lows saw contracts grow faster.
 
-Use Binance BTCUSDT perpetual daily closes for detection (same family as the 21 EMA tab). Document any unavoidable difference from Cav’s sample dates in the footnote if the event lists diverge.
+Use Binance BTCUSDT perpetual daily candles (highs and lows) for detection, from the same loader as the 21 EMA tab. The footnote states the remaining difference from Cav’s sample.
 
 ## Metrics maths
 
@@ -66,7 +69,7 @@ Use Binance BTCUSDT perpetual daily closes for detection (same family as the 21 
 
 | Need | Endpoint family |
 | --- | --- |
-| BTC daily closes | Existing `binanceCloses('perp', '1d', …)` |
+| BTC daily candles (close, high, low) | Existing `binanceCloses('perp', '1d', …)`, which also keeps each candle’s high and low |
 | BTC OI history | Binance futures public open-interest history |
 | BTC funding history | Binance futures public funding rate history |
 | Alt symbols + OI + funding | Binance USDT-M exchangeInfo / premiumIndex / openInterest (and history endpoints as available) |
@@ -78,7 +81,7 @@ All fetches from the visitor’s browser when CORS allows; cache in-tab like oth
 - Extend `MetricTab` / `METRIC_TABS` / labels / tips in `src/app/metrics/settings.ts`.
 - Wire the tab in `tabs.ts` (or equivalent) and `view.ts`: new render path `pos` that builds three panels.
 - New helpers (keep pure and tested):
-  - `durableLows(closes): { t, confirmed }[]`
+  - `durableLows(time, high, low): { t, confirmed }[]`
   - `contractsIndex(oi, price): series`
   - `funding7dAnnualised(rates): series`
   - `altNegShare(days): series`
