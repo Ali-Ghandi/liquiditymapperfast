@@ -5,6 +5,9 @@ import { addTrade, optionKind, parsePutFlow, premiumUsd, readTrade, rowsOf, trai
 import { DEFAULT_RANGE, METRIC_KEY, METRIC_TABS, RANGES, SOURCE_START, readMetricPrefs, rangeStart, writeMetricPrefs } from '../src/app/metrics/settings.ts';
 import { dayTicks, niceTicks, timeTicks } from '../src/app/metrics/ticks.ts';
 import { nearest } from '../src/app/metrics/plot.ts';
+import {
+  contractsIndex, durableLows, funding7dAnnualised, pctChange, pointChange,
+} from '../src/app/metrics/positioning.ts';
 
 const close = (a: number, b: number, eps: number, what = ''): void => assert.ok(Math.abs(a - b) <= eps, `${what} ${a} is not within ${eps} of ${b}`);
 
@@ -246,4 +249,50 @@ test('axis ticks: round numbers, log steps, weekly Mondays, month starts and day
   const months = timeTicks(Date.UTC(2023, 4, 1), Date.UTC(2026, 10, 18), 8);
   assert.ok(months.every(m => new Date(m.v).getUTCDate() === 1 && new Date(m.v).getUTCMonth() % 6 === 0));
   assert.deepEqual(dayTicks(0.9, 220).map(d => d.label), ['1d', '7d', '30d', '90d', '180d']);
+});
+
+/** ---- positioning: durable lows, contracts index, funding maths ----------------------------------------------------------------- */
+
+test('durableLows: 15% under 90d high, held 60d, then +15% is confirmed; a fresh dip is unconfirmed now', () => {
+  const DAY = 86_400_000;
+  const t0 = Date.UTC(2024, 0, 1);
+  const time: number[] = [], close: number[] = [];
+  // 100 days flat at 100, then crash to 80 (day 100), stay ≥80 for 60 days, then rally to 92 (15% from 80)
+  for (let i = 0; i < 200; i++) {
+    time.push(t0 + i * DAY);
+    if (i < 100) close.push(100);
+    else if (i < 160) close.push(80);
+    else close.push(92);
+  }
+  const lows = durableLows(time, close, t0 + 199 * DAY);
+  assert.equal(lows.filter(l => l.confirmed).length, 1);
+  assert.equal(lows.find(l => l.confirmed)!.t, t0 + 100 * DAY);
+});
+
+test('contractsIndex deflates OI by price and indexes to 100', () => {
+  const oi = [1000, 1100], price = [50_000, 55_000];
+  const idx = contractsIndex(oi, price, 100);
+  close(idx[0]!, 100, 1e-9);
+  // 1100/1000 * 50000/55000 * 100
+  close(idx[1]!, 100 * 1.1 * (50_000 / 55_000), 1e-9);
+});
+
+test('funding7dAnnualised means the last 7 days of funding events and annualises ×3×365×100', () => {
+  const DAY = 86_400_000;
+  const day = Date.UTC(2024, 5, 10);
+  const time: number[] = [], rate: number[] = [];
+  for (let i = 0; i < 21; i++) { // 7 days × 3
+    time.push(day - 6 * DAY + i * (DAY / 3));
+    rate.push(0.0001); // 0.01% per funding
+  }
+  const out = funding7dAnnualised(time, rate, [day]);
+  close(out[0]!, 0.0001 * 3 * 365 * 100, 1e-6);
+});
+
+test('pctChange and pointChange read 30 days back', () => {
+  const DAY = 86_400_000, t0 = Date.UTC(2024, 0, 1);
+  const times = Array.from({ length: 40 }, (_, i) => t0 + i * DAY);
+  const series = times.map((_, i) => 100 + i);
+  close(pctChange(series, times, t0 + 39 * DAY, 30), 100 * ((139 / 109) - 1), 1e-9);
+  close(pointChange(series, times, t0 + 39 * DAY, 30), 30, 1e-9);
 });
