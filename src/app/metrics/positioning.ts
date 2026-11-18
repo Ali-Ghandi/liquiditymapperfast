@@ -10,8 +10,9 @@ export interface DurableLow { t: number; confirmed: boolean }
 
 /**
  * Days that fell ≥15% under the prior 90-day high. Among each run of such days, the minimum close is the low. It is confirmed once
- * every close in the next 60 days stays at or above that low and some later close reaches +15%; a low whose 60-day hold is not yet
- * finished is returned unconfirmed ("now"), at most one of those.
+ * every close in the next 60 days stays at or above that low and some later close reaches +15%. A low that may still be confirmed is
+ * returned unconfirmed ("now"), at most one of those (the latest): its 60-day hold is not finished yet, or it is held but has not rallied
+ * 15% yet and no close since has gone under it.
  */
 export function durableLows(time: ArrayLike<number>, close: ArrayLike<number>, now?: number): DurableLow[] {
   const n = Math.min(time.length, close.length);
@@ -44,31 +45,33 @@ export function durableLows(time: ArrayLike<number>, close: ArrayLike<number>, n
     const t = time[minI]!;
     const holdEnd = t + 60 * DAY_MS;
     if (!Number.isFinite(minPx) || minPx <= 0) continue;
-    let held = true, covered = false, rallied = false;
+    let held = true, covered = false, rallied = false, undercutLater = false;
     for (let j = 0; j < n; j++) {
       const tj = time[j]!, px = close[j]!;
       if (tj <= t || tj > end || !Number.isFinite(px)) continue;
-      if (tj <= holdEnd && px < minPx) held = false;
+      if (px < minPx) { if (tj <= holdEnd) held = false; else undercutLater = true; }
       if (tj >= holdEnd) covered = true;
       if (px >= minPx * 1.15) rallied = true;
     }
     if (!held) continue;
     if (covered && rallied) confirmed.push({ t, confirmed: true });
-    else if (!covered) latestUnconfirmed = { t, confirmed: false };
+    else if (!covered || !undercutLater) latestUnconfirmed = { t, confirmed: false };
   }
   return latestUnconfirmed ? [...confirmed, latestUnconfirmed] : confirmed;
 }
 
 /**
- * Open interest as a contracts index: each day's OI is deflated by the price move from the first day and scaled so the first reading is
- * `base` (100). NaN when the first OI or a day's price is not positive.
+ * Cav's contracts index from USD open interest: each day's USD OI is deflated by the price move from the first day (i.e. turned into
+ * contracts) and scaled so the first reading is `base` (100). Binance's BTCUSDT open interest is already counted in BTC (contracts), so
+ * a caller with that passes OI × price (`contractsOnGrid`), and the price cancels. NaN when the first USD OI or a day's price is not
+ * positive.
  */
-export function contractsIndex(oi: ArrayLike<number>, price: ArrayLike<number>, base = 100): Float64Array {
-  const n = Math.min(oi.length, price.length), out = new Float64Array(n).fill(NaN);
-  const o0 = oi[0]!, p0 = price[0]!;
+export function contractsIndex(usdOi: ArrayLike<number>, price: ArrayLike<number>, base = 100): Float64Array {
+  const n = Math.min(usdOi.length, price.length), out = new Float64Array(n).fill(NaN);
+  const o0 = usdOi[0]!, p0 = price[0]!;
   if (!(o0 > 0 && p0 > 0)) return out;
   for (let i = 0; i < n; i++) {
-    const p = price[i]!, o = oi[i]!;
+    const p = price[i]!, o = usdOi[i]!;
     if (p > 0 && Number.isFinite(o)) out[i] = o * base * p0 / p / o0;
   }
   return out;
@@ -295,8 +298,8 @@ export function fundingOnGrid(times: ArrayLike<number>, rates: DaySeries | null,
   return out;
 }
 
-/** Chart C's series: one entry per UTC day from the first reading to the last. */
-export interface AltNegSeries { time: Float64Array; raw: Float64Array; avg7: Float64Array; live: boolean }
+/** Chart C's series: one entry per UTC day from the first reading to the last. `n7` is how many readings each day's `avg7` is the mean of. */
+export interface AltNegSeries { time: Float64Array; raw: Float64Array; avg7: Float64Array; n7: Float64Array; live: boolean }
 
 /**
  * The alt negative-funding share by UTC day: the archive's daily readings, plus `live` (a reading taken now) on its own day, replacing an
@@ -308,16 +311,17 @@ export function altNegSeries(file: PositioningFile | null, live: { at: number; v
   if (file) for (const [day, , , a] of file.days) if (Number.isFinite(a)) by.set(day, a);
   const liveDay = live && Number.isFinite(live.value) ? Math.floor(live.at / DAY_MS) : null;
   if (liveDay !== null) by.set(liveDay, live!.value);
-  if (!by.size) return { time: new Float64Array(0), raw: new Float64Array(0), avg7: new Float64Array(0), live: false };
+  if (!by.size) return { time: new Float64Array(0), raw: new Float64Array(0), avg7: new Float64Array(0), n7: new Float64Array(0), live: false };
   const days = [...by.keys()], first = Math.min(...days), last = Math.max(...days), n = last - first + 1;
-  const time = new Float64Array(n), raw = new Float64Array(n).fill(NaN), avg7 = new Float64Array(n).fill(NaN);
+  const time = new Float64Array(n), raw = new Float64Array(n).fill(NaN), avg7 = new Float64Array(n).fill(NaN), n7 = new Float64Array(n);
   for (let k = 0; k < n; k++) { time[k] = (first + k) * DAY_MS; raw[k] = by.get(first + k) ?? NaN; }
   for (let k = 0; k < n; k++) {
     let sum = 0, count = 0;
     for (let j = Math.max(0, k - 6); j <= k; j++) if (Number.isFinite(raw[j]!)) { sum += raw[j]!; count++; }
     if (count) avg7[k] = sum / count;
+    n7[k] = count;
   }
-  return { time, raw, avg7, live: liveDay !== null };
+  return { time, raw, avg7, n7, live: liveDay !== null };
 }
 
 /**
@@ -327,4 +331,22 @@ export function altNegSeries(file: PositioningFile | null, live: { at: number; v
 export function nowLow(lows: DurableLow[], lastDay: number): { lows: DurableLow[]; pending: boolean } {
   if (lows.some(l => !l.confirmed)) return { lows, pending: true };
   return { lows: [...lows, { t: lastDay, confirmed: false }], pending: false };
+}
+
+/** One event of charts A and B (`lowEventPoints`). */
+export type LowEvent = ReturnType<typeof lowEventPoints>[number];
+
+/**
+ * How "now" compares with the confirmed lows, for the tab's headline: of the lows with open interest, how many saw contracts grow faster
+ * (null when now's own contracts change is unknown, so no count is claimed); of all lows (each has funding), how many saw funding rise
+ * at least as far.
+ */
+export function nowComparison(lows: LowEvent[], now: LowEvent): { withOi: number; faster: number | null; withFunding: number; further: number } {
+  const withOi = lows.filter(p => Number.isFinite(p.oiPct));
+  return {
+    withOi: withOi.length,
+    faster: Number.isFinite(now.oiPct) ? withOi.filter(p => p.oiPct > now.oiPct).length : null,
+    withFunding: lows.length,
+    further: lows.filter(p => p.fundPts >= now.fundPts).length,
+  };
 }

@@ -7,7 +7,7 @@ import { dayTicks, niceTicks, timeTicks } from '../src/app/metrics/ticks.ts';
 import { nearest } from '../src/app/metrics/plot.ts';
 import {
   altCandidates, altNegSeries, altNegShare, contractsIndex, contractsOnGrid, dailyOiFromMetrics, durableLows, funding7dAnnualised, fundingOnGrid,
-  lowEventPoints, mergeOiByDay, nowLow, parsePositioning, pctChange, pointChange, usdtPerpAlts, type PositioningFile,
+  lowEventPoints, mergeOiByDay, nowComparison, nowLow, parsePositioning, pctChange, pointChange, usdtPerpAlts, type PositioningFile,
 } from '../src/app/metrics/positioning.ts';
 
 const close = (a: number, b: number, eps: number, what = ''): void => assert.ok(Math.abs(a - b) <= eps, `${what} ${a} is not within ${eps} of ${b}`);
@@ -282,12 +282,27 @@ test('durableLows: 15% under 90d high, held 60d, then +15% is confirmed; a fresh
   assert.equal(fresh[0]!.confirmed, false);
 });
 
-test('contractsIndex deflates OI by price and indexes to 100', () => {
-  const oi = [1000, 1100], price = [50_000, 55_000];
-  const idx = contractsIndex(oi, price, 100);
+test('contractsIndex deflates USD open interest by price into contracts and indexes to 100', () => {
+  const usdOi = [1000, 1100], price = [50_000, 55_000];
+  const idx = contractsIndex(usdOi, price, 100);
   close(idx[0]!, 100, 1e-9);
   // 1100/1000 * 50000/55000 * 100
   close(idx[1]!, 100 * 1.1 * (50_000 / 55_000), 1e-9);
+  // Open interest already in BTC goes in as USD (× price), so the price cancels: the index is BTC OI over the first day's.
+  const btc = [20, 22], usd = btc.map((v, i) => v * price[i]!);
+  close(contractsIndex(usd, price)[1]!, 110, 1e-9);
+});
+
+test('durableLows: a low held 60 days that has not yet rallied 15% is still pending; one undercut afterwards is not', () => {
+  const t0 = Date.UTC(2024, 0, 1);
+  const time = Array.from({ length: 200 }, (_, i) => t0 + i * DAY_MS);
+  // 100 days at 100, then 80 for 100 days: held and covered, never +15 %.
+  const flat = time.map((_, i) => (i < 100 ? 100 : 80));
+  assert.deepEqual(durableLows(time, flat), [{ t: t0 + 100 * DAY_MS, confirmed: false }]);
+  // The same, then 75 from day 190: under the low after its 60 days (75 is not 15 % under the 90-day high of 80, so not a new low).
+  const time2 = Array.from({ length: 220 }, (_, i) => t0 + i * DAY_MS);
+  const undercut = time2.map((_, i) => (i < 100 ? 100 : i < 190 ? 80 : 75));
+  assert.deepEqual(durableLows(time2, undercut), []);
 });
 
 test('funding7dAnnualised means the last 7 days of funding events and annualises ×3×365×100', () => {
@@ -470,6 +485,7 @@ test('altNegSeries: archive readings plus a live reading on today, a 7-day trail
   const s = altNegSeries(file, { at: (d0 + 5) * DAY_MS + 3 * HOUR_MS, value: 30 });
   assert.deepEqual(Array.from(s.time), [0, 1, 2, 3, 4, 5].map(k => (d0 + k) * DAY_MS));
   assert.deepEqual(Array.from(s.raw).map(v => (Number.isNaN(v) ? null : v)), [10, null, 20, null, null, 30]);
+  assert.deepEqual(Array.from(s.n7), [1, 1, 2, 2, 2, 3], 'readings in each 7-day window: the mean is "mean of n readings" until 7');
   close(s.avg7[0]!, 10, 1e-9); close(s.avg7[1]!, 10, 1e-9); close(s.avg7[2]!, 15, 1e-9); close(s.avg7[5]!, 20, 1e-9);
   assert.equal(s.live, true);
   const single = altNegSeries(posFile(d0, [[1, 1, NaN], [1, 1, 11.7]]), null);
@@ -495,4 +511,11 @@ test('rangeLabel: Positioning\'s longest range says where it begins (Jan 2020)',
   assert.equal(rangeLabel('pos', 'ALL'), 'Since Jan 2020');
   assert.equal(rangeLabel('gap', 'ALL'), 'Since Apr 2021');
   assert.equal(ALL_START.pos, Date.UTC(2020, 0, 1));
+});
+
+test('nowComparison: counts lows that beat now, and leaves the contracts count out when now has no open interest', () => {
+  const p = (oiPct: number, fundPts: number) => ({ t: 0, confirmed: true, oiPct, fundPts, fundAt: 0 });
+  const lows = [p(10, 1), p(-5, 6), p(NaN, 7), p(3, -2)];
+  assert.deepEqual(nowComparison(lows, { ...p(5, 5), confirmed: false }), { withOi: 3, faster: 1, withFunding: 4, further: 2 });
+  assert.deepEqual(nowComparison(lows, { ...p(NaN, 5), confirmed: false }), { withOi: 3, faster: null, withFunding: 4, further: 2 });
 });
