@@ -112,14 +112,23 @@ function unzipOne(zip: Buffer): string {
   throw new Error(`zip method ${method}`);
 }
 
+/** `work`, or an error after `ms`: a connection that went quiet (seen after the machine slept) can outlive the fetch's own abort. */
+function deadline<T>(work: Promise<T>, ms: number, what: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([work, new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(`no answer in ${ms / 1000} s for ${what}`)), ms); })])
+    .finally(() => { clearTimeout(timer); work.catch(() => {}); });
+}
+
 /** A data.binance.vision zip's text, or null when the file is not there (not published yet, or never). Retried otherwise. */
 async function archive(pathname: string): Promise<string | null> {
   for (let attempt = 0; ; attempt++) {
     try {
-      const response = await fetch(`${ARCHIVE}/${pathname}`, { signal: AbortSignal.timeout(60_000), headers: { 'user-agent': 'liquidity-mapper-fast positioning' } });
-      if (response.status === 404 || response.status === 403) return null; // S3 answers 403 or 404 for a missing key
-      if (!response.ok) throw new Error(`HTTP ${response.status} for ${pathname}`);
-      return unzipOne(Buffer.from(await response.arrayBuffer()));
+      return await deadline((async () => {
+        const response = await fetch(`${ARCHIVE}/${pathname}`, { signal: AbortSignal.timeout(60_000), headers: { 'user-agent': 'liquidity-mapper-fast positioning' } });
+        if (response.status === 404 || response.status === 403) return null; // S3 answers 403 or 404 for a missing key
+        if (!response.ok) throw new Error(`HTTP ${response.status} for ${pathname}`);
+        return unzipOne(Buffer.from(await response.arrayBuffer()));
+      })(), 90_000, pathname);
     } catch (error) {
       if (attempt >= 4) throw error;
       await sleep(1000 * 2 ** attempt);
