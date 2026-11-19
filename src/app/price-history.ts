@@ -49,7 +49,7 @@ export function priceWindow(view: Window, width: number, now: number, previousMs
     if (to > from && to - from <= PRICE_QUERY_BARS * chartMs) return { tf: own[0], tfMs: chartMs, from: Math.max(0, to - PRICE_QUERY_BARS * chartMs, from - Math.max(0, Math.floor(warmBars)) * chartMs), to };
   }
   // Candles drawn longer than the chart's while zoomed out (`candleMs`, heat-pane `drawnTf`: the chart's own would be narrower than
-  // CANDLE_LINE_PX): the exchange's candles of that length wherever one read holds the window, so the candles before the chart's own are as long
+  // CANDLE_TARGET_PX): the exchange's candles of that length wherever one read holds the window, so the candles before the chart's own are as long
   // as the chart's added up (a user, 2026-11-11: candles on higher zoom outs). Past that, the line's own choice below, drawn as candles too.
   const longer = Object.entries(TIMEFRAMES).find(([, ms]) => ms === candleMs && ms > chartMs);
   if (longer) {

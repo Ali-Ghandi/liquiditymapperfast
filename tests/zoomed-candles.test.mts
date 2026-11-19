@@ -66,6 +66,8 @@ test('candles pick the shortest TF that stays about CANDLE_TARGET_PX wide', () =
   assert.equal(stripTimeframe(H, 8 * D, pw, CANDLE_TARGET_PX).ms, H);
   // Never finer than the chart TF
   assert.equal(stripTimeframe(4 * H, 2 * D, pw, CANDLE_TARGET_PX).ms, 4 * H);
+  // Hourly at 45 days: pw*H/(45D) ≈ 1.39 px; no 8h TF, so 1d (≈7.4 px at 7px target)
+  assert.equal(stripTimeframe(H, 45 * D, pw, CANDLE_TARGET_PX).ms, D);
 });
 
 test('zoomed out past one read of the chart\'s candles, the price history is read at the length of the candles drawn', () => {
