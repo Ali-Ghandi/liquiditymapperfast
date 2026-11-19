@@ -19,3 +19,11 @@ test('every published copy the workflow reads back is addressed from SITE', () =
   assert.deepEqual(previous.map(p => p.replace(/[a-z-]+\.json$/, '')), ['${SITE}', '${SITE}', '${SITE}']);
   assert.deepEqual(previous.map(p => p.slice('${SITE}'.length)), ['coins.json', 'put-flow.json', 'positioning.json']);
 });
+
+test('the Pages workflow says the positioning archive is read from data.binance.vision', () => {
+  const start = workflow.indexOf('positioning.json');
+  const end = workflow.indexOf('positioning.mjs', start);
+  assert.ok(start >= 0 && end > start, 'the positioning step and its comment are present');
+  assert.match(workflow.slice(start, end), /data\.binance\.vision/);
+});
+

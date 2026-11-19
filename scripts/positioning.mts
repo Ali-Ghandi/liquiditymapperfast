@@ -83,7 +83,7 @@ async function binance(pathAndQuery: string, attempts = 5): Promise<unknown> {
         const error = new Error(`HTTP ${response.status} for ${pathAndQuery}`);
         if (response.status === 451 || response.status === 403) {
           fapiRefused = `HTTP ${response.status}`;
-          console.warn(`fapi.binance.com answers HTTP ${response.status} here (${response.status === 451 ? 'a refused place' : 'a refused place or a WAF limit'}): funding and open interest come from data.binance.vision, the alt share is skipped`);
+          console.warn(`fapi.binance.com answers HTTP ${response.status} here (${response.status === 451 ? 'a refused place' : 'a refused place or a WAF limit'}): funding and open interest come from data.binance.vision; the alt-share archive history is kept, and only the live day is skipped`);
         }
         if (response.status === 451 || response.status === 403 || response.status === 400) throw Object.assign(error, { final: true });
         if (response.status === 429 || response.status === 418) await sleep(Number(response.headers.get('retry-after') ?? 10) * 1000);

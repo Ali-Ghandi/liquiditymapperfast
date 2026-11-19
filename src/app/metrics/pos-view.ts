@@ -8,7 +8,7 @@ import { t, tn } from '../i18n.ts';
 import type { Chart } from './plot.ts';
 import { DAY_MS } from './math.ts';
 import { binanceFunding, binanceOiDaily, liveAltNegShare, positioningHistory } from './data.ts';
-import { CAV_LOW_MONTHS, CAV_SAMPLE_START, altNegSeries, contractsOnGrid, durableLows, fundingOnGrid, lowEventPoints, mergeOiByDay, monthsMatched, nowComparison, nowLow, type AltNegSeries, type LowEvent, type PositioningFile } from './positioning.ts';
+import { CAV_LOW_MONTHS, CAV_SAMPLE_START, altNegSeries, contractsOnGrid, durableLows, fundingOnGrid, lastFullAltMean, lowEventPoints, mergeOiByDay, monthsMatched, nowComparison, nowLow, type AltNegSeries, type LowEvent, type PositioningFile } from './positioning.ts';
 import { Cached, PERP_START, STALE_MS, axis, dailyPerp, f1, idx, progress, signed, type Palette } from './shared.ts';
 import { dateLabel, dayLabel } from './ticks.ts';
 
@@ -119,14 +119,15 @@ function scatter(chart: Chart, c: Palette, d: PosData, xOf: (p: LowEvent) => num
 const meanName = (n: number): string => (n >= 7 ? t('7d mean') : tn(n, 'Mean of {n} reading', 'Mean of {n} readings'));
 
 /**
- * Chart C: the mean of the daily readings (purple line), each reading (grey dots), and the live reading as the red dot with its value.
- * `liveNote` says why there is no live dot (loading, or unavailable); then nothing red is drawn.
+ * Chart C: the 7-day mean of the daily archive readings (the purple line, dominant), each reading as a small faint dot, and the live
+ * reading as the red dot with its value. The mean and its legend stop at the last archive day, not in the funding-lag gap. `liveNote`
+ * says why there is no live dot (loading, or unavailable); then nothing red is drawn.
  */
 function drawAlt(host: PosHost, chart: Chart, c: Palette, s: AltNegSeries, start: number, liveNote: string): void {
   const n = s.time.length, base = t('Alt OI on negative funding');
   if (!n) {
     host.rangesIdle(true);
-    chart.set({ x: { kind: 'time', min: start, max: Date.now() }, legend: liveNote ? [{ color: c.muted, text: liveNote }] : [], panels: [{ weight: 1, format: axis, min: 0, layers: [], title: `${base} — ${t('no readings yet')}` }] }, c);
+    chart.set({ x: { kind: 'time', min: start, max: Date.now() }, legend: liveNote ? [{ color: c.muted, text: liveNote }] : [], panels: [{ weight: 1, format: axis, min: 0, max: 100, layers: [], title: `${base} — ${t('no readings yet')}` }] }, c);
     return;
   }
   const last = s.time[n - 1]!, span = last - s.time[0]!;
@@ -134,27 +135,27 @@ function drawAlt(host: PosHost, chart: Chart, c: Palette, s: AltNegSeries, start
   // then the last month is shown so one point is not a sliver, and the range chips are idle.
   host.rangesIdle(span < 30 * DAY_MS);
   const min = span < 30 * DAY_MS ? last - 34 * DAY_MS : Math.max(start, s.time[0]! - DAY_MS);
-  let i = n - 1; while (i > 0 && !Number.isFinite(s.avg7[i]!)) i--;
+  const mean = lastFullAltMean(s);
   const finite = Array.from(s.raw).filter(Number.isFinite);
   const liveAt = s.live ? n - 1 : -1, readings = finite.length - (liveAt >= 0 ? 1 : 0);
-  const hasMean = Number.isFinite(s.avg7[i]!);
-  // The archive's readings in grey; the live one is the red dot.
+  // The archive's readings in faint grey under the mean; the live one is the red dot, left out of the daily cloud.
   const daily = Float64Array.from(s.raw, (v, k) => (k === liveAt ? NaN : v));
   chart.set({
     x: { kind: 'time', min, max: last + 2 * DAY_MS },
     legend: [
-      // The mean is of the archive's readings, which end weeks before the live one: its legend says on which day.
-      ...(hasMean ? [{ color: c.purple, text: `${meanName(s.n7[i]!)} (${dayLabel(s.time[i]!)}): ${f1(s.avg7[i]!)}%` }] : []),
+      // The mean is of the archive's readings and ends on their last day, even when a later live reading is on the chart.
+      ...(mean ? [{ color: c.purple, text: `${meanName(mean.n)} (${dayLabel(mean.t)}): ${f1(mean.avg)}%` }] : []),
       { color: c.muted, text: t('daily reading') },
       ...(liveAt >= 0 ? [{ color: c.flag, text: t('live now: {v}%', { v: f1(s.raw[liveAt]!) }) }] : liveNote ? [{ color: c.muted, text: liveNote }] : []),
     ],
-    panels: [{ weight: 1, format: axis, min: 0, include: [Math.max(25, ...finite.map(v => v * 1.25))], layers: [
-      { kind: 'line', x: s.time, y: s.avg7, color: c.purple, width: 1.5 },
-      // The readings over the line; while the history is short the mean is also marked each day, as a small dot drawn on top of the
-      // reading (a bullseye where they meet), so both stay visible and one or two days still show.
-      { kind: 'scatter', x: s.time, y: daily, color: () => c.muted, r: 5 },
+    panels: [{ weight: 1, format: axis, min: 0, max: 100, layers: [
+      // Faint daily dots first, then the mean on top so it stays the line you read; the live dot last, and larger.
+      { kind: 'scatter', x: s.time, y: daily, color: () => c.muted, r: 1.3, alpha: 0.35, ring: false },
+      { kind: 'line', x: s.time, y: s.avg7, color: c.purple, width: 2.2 },
+      // While the history is short the mean is also marked each day, as a small dot drawn on top of the reading (a bullseye where
+      // they meet), so both stay visible and one or two days still show.
       ...(readings < 8 ? [{ kind: 'scatter' as const, x: s.time, y: s.avg7, color: () => c.purple, r: 2.2 }] : []),
-      ...(liveAt >= 0 ? [{ kind: 'dot' as const, x: s.time[liveAt]!, y: s.raw[liveAt]!, color: c.flag, label: `${f1(s.raw[liveAt]!)}% ${t('live')}` }] : []),
+      ...(liveAt >= 0 ? [{ kind: 'dot' as const, x: s.time[liveAt]!, y: s.raw[liveAt]!, color: c.flag, r: 5.5, label: `${f1(s.raw[liveAt]!)}% ${t('live')}` }] : []),
     ], title: `${base} · ${tn(readings, '{n} daily reading', '{n} daily readings')}` }],
     snap: s.time,
     readout: x => {

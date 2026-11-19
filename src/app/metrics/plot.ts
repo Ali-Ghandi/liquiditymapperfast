@@ -14,9 +14,9 @@ export type Layer =
   | { kind: 'area'; x: ArrayLike<number>; y: ArrayLike<number>; base: number; color: string }
   | { kind: 'bars'; x: ArrayLike<number>; y: ArrayLike<number>; base: number; color: (i: number) => string; width?: number }
   | { kind: 'hline'; y: number; color: string; dash?: boolean; width?: number }
-  | { kind: 'dot'; x: number; y: number; color: string; label?: string }
-  /** Points at (x[i], y[i]), each its own colour; non-finite ones are skipped. `r` is the radius (4 px). */
-  | { kind: 'scatter'; x: ArrayLike<number>; y: ArrayLike<number>; color: (i: number) => string; r?: number }
+  | { kind: 'dot'; x: number; y: number; color: string; label?: string; r?: number }
+  /** Points at (x[i], y[i]), each its own colour; non-finite ones are skipped. `r` is the radius (4 px). `alpha` tints the fill; `ring` (default on) is a background stroke that keeps neighbouring points apart. */
+  | { kind: 'scatter'; x: ArrayLike<number>; y: ArrayLike<number>; color: (i: number) => string; r?: number; alpha?: number; ring?: boolean }
   /** A vertical level line at x (zero on a value axis). */
   | { kind: 'vline'; x: number; color: string; dash?: boolean; width?: number }
   /** A shaded box in data units (±Infinity reaches the panel's edge), e.g. a scatter's quadrant; drawn in layer order. */
@@ -208,14 +208,17 @@ export class Chart implements Sharpened {
           ctx.strokeStyle = L.color; ctx.lineWidth = L.width ?? 1.2; ctx.setLineDash(L.dash ? [5, 4] : []);
           const x = Math.round(px(L.x)) + 0.5; ctx.beginPath(); ctx.moveTo(x, bx.top); ctx.lineTo(x, bx.bottom); ctx.stroke(); ctx.setLineDash([]);
         } else if (L.kind === 'scatter') {
-          const r = L.r ?? 4;
+          const r = L.r ?? 4, prev = ctx.globalAlpha;
+          if (L.alpha !== undefined) ctx.globalAlpha = L.alpha;
           for (let i = 0; i < Math.min(L.x.length, L.y.length); i++) {
             const xv = L.x[i]!, yv = L.y[i]!;
             if (!Number.isFinite(xv) || !Number.isFinite(yv) || (p.log && yv <= 0)) continue;
-            // A ring of the page's colour keeps neighbouring points apart.
             ctx.beginPath(); ctx.arc(px(xv), ys(yv), r, 0, Math.PI * 2);
-            ctx.fillStyle = L.color(i); ctx.fill(); ctx.strokeStyle = c.bg; ctx.lineWidth = 1; ctx.stroke();
+            ctx.fillStyle = L.color(i); ctx.fill();
+            // A ring of the page's colour keeps neighbouring points apart; left off on a dense, faint series.
+            if (L.ring !== false) { ctx.strokeStyle = c.bg; ctx.lineWidth = 1; ctx.stroke(); }
           }
+          ctx.globalAlpha = prev;
         } else if (L.kind === 'hline') {
           ctx.strokeStyle = L.color; ctx.lineWidth = L.width ?? 1.2; ctx.setLineDash(L.dash ? [5, 4] : []);
           const y = ys(L.y); ctx.beginPath(); ctx.moveTo(plotL, y); ctx.lineTo(plotR, y); ctx.stroke(); ctx.setLineDash([]);
@@ -268,16 +271,29 @@ export class Chart implements Sharpened {
       }
       ctx.restore();
       for (const L of p.layers) if (L.kind === 'dot') {
-        const x = px(L.x), y = ys(L.y);
-        ctx.fillStyle = L.color; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill();
+        const x = px(L.x), y = ys(L.y), r = L.r ?? 3.5;
+        ctx.fillStyle = L.color; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = c.bg; ctx.lineWidth = 1.6; ctx.stroke();
         if (L.label) {
-          // Right of the dot, or left of it where the plot's edge leaves no room (the latest reading sits at the right edge).
-          ctx.font = `bold ${fs + 2}px ${font}`; ctx.textBaseline = 'middle';
-          const room = x + 7 + ctx.measureText(L.label).width <= plotR - 2;
-          ctx.textAlign = room ? 'left' : 'right';
-          const ly = Math.min(Math.max(y, bx.top + fs), bx.bottom - fs);
-          ctx.fillStyle = c.bg; ctx.globalAlpha = 0.85; const tw = ctx.measureText(L.label).width; ctx.fillRect(room ? x + 5 : x - 9 - tw, ly - fs / 2 - 3, tw + 4, fs + 6); ctx.globalAlpha = 1;
-          ctx.fillStyle = L.color; ctx.fillText(L.label, room ? x + 7 : x - 7, ly); ctx.font = `${fs}px ${font}`;
+          // Right of the dot when it fits; otherwise above it (or below if the panel's top is tight), so a reading at the right
+          // edge does not draw its label back over the series.
+          ctx.font = `bold ${fs + 2}px ${font}`;
+          const tw = ctx.measureText(L.label).width, th = fs + 6, padTop = p.title ? fs + 6 : 2;
+          const room = x + 7 + tw <= plotR - 2;
+          if (room) {
+            ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+            const ly = Math.min(Math.max(y, bx.top + fs), bx.bottom - fs);
+            ctx.fillStyle = c.bg; ctx.globalAlpha = 0.85; ctx.fillRect(x + 5, ly - fs / 2 - 3, tw + 4, th); ctx.globalAlpha = 1;
+            ctx.fillStyle = L.color; ctx.fillText(L.label, x + 7, ly);
+          } else {
+            const above = y - 8 - th >= bx.top + padTop;
+            ctx.textAlign = 'right'; ctx.textBaseline = above ? 'bottom' : 'top';
+            const tx = Math.min(x + 2, plotR - 2), ty = above ? y - r - 4 : y + r + 4;
+            ctx.fillStyle = c.bg; ctx.globalAlpha = 0.85;
+            ctx.fillRect(tx - tw - 2, above ? ty - th : ty, tw + 4, th); ctx.globalAlpha = 1;
+            ctx.fillStyle = L.color; ctx.fillText(L.label, tx, ty);
+          }
+          ctx.font = `${fs}px ${font}`;
         }
       }
       if (p.title) {

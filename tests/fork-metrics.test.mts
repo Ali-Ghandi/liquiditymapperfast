@@ -7,7 +7,7 @@ import { dayTicks, niceTicks, timeTicks } from '../src/app/metrics/ticks.ts';
 import { nearest } from '../src/app/metrics/plot.ts';
 import {
   ALT_ARCHIVE_DEF, CAV_LOW_MONTHS, CAV_SAMPLE_START, altArchiveDaysWanted, altCandidates, altNegShareFromArchive, altNegSeries, altNegShare, contractsIndex, contractsOnGrid, dailyOiFromMetrics, durableLows, funding7dAnnualised, fundingOnGrid,
-  lastFundingBefore, lowEventPoints, mergeOiByDay, metricsUsdOiAtClose, nonCryptoUsdtPerps, monthsMatched, nowComparison, nowLow, parsePositioning, pctChange, pointChange, usdtPerpAlts, type PositioningFile,
+  lastFundingBefore, lastFullAltMean, lowEventPoints, mergeOiByDay, metricsUsdOiAtClose, nonCryptoUsdtPerps, monthsMatched, nowComparison, nowLow, parsePositioning, pctChange, pointChange, usdtPerpAlts, type PositioningFile,
 } from '../src/app/metrics/positioning.ts';
 
 const close = (a: number, b: number, eps: number, what = ''): void => assert.ok(Math.abs(a - b) <= eps, `${what} ${a} is not within ${eps} of ${b}`);
@@ -634,9 +634,11 @@ test('altNegSeries: archive readings plus a live reading on today, a 7-day trail
   const s = altNegSeries(file, { at: (d0 + 5) * DAY_MS + 3 * HOUR_MS, value: 30 });
   assert.deepEqual(Array.from(s.time), [0, 1, 2, 3, 4, 5].map(k => (d0 + k) * DAY_MS));
   assert.deepEqual(Array.from(s.raw).map(v => (Number.isNaN(v) ? null : v)), [10, null, 20, null, null, 30]);
-  // The live reading is measured another way (current funding, contracts × mark now), so the mean is of the archive's readings only.
-  assert.deepEqual(Array.from(s.n7), [1, 1, 2, 2, 2, 2], 'archive readings in each 7-day window: the mean is "mean of n readings" until 7');
-  close(s.avg7[0]!, 10, 1e-9); close(s.avg7[1]!, 10, 1e-9); close(s.avg7[2]!, 15, 1e-9); close(s.avg7[5]!, 15, 1e-9);
+  // The live reading is measured another way (current funding, contracts × mark now), so the mean is of the archive's readings only,
+  // and only up to the last archive reading (d0+2): the funding-lag gap and the live day have none.
+  assert.deepEqual(Array.from(s.n7), [1, 1, 2, 0, 0, 0], 'mean stops at the last archive day');
+  close(s.avg7[0]!, 10, 1e-9); close(s.avg7[1]!, 10, 1e-9); close(s.avg7[2]!, 15, 1e-9);
+  assert.ok(Number.isNaN(s.avg7[3]!)); assert.ok(Number.isNaN(s.avg7[4]!)); assert.ok(Number.isNaN(s.avg7[5]!));
   assert.equal(s.live, true);
   const single = altNegSeries(posFile(d0, [[1, 1, NaN], [1, 1, 11.7]]), null);
   assert.deepEqual(Array.from(single.time), [(d0 + 1) * DAY_MS], 'one archive reading: one point');
@@ -650,6 +652,37 @@ test('altNegSeries: archive readings plus a live reading on today, a 7-day trail
   // A reading every 8 days leaves a day with none in its 7: NaN, so the line breaks there.
   const sparse = altNegSeries(posFile(d0, [[1, 1, 10], [1, 1, NaN], [1, 1, NaN], [1, 1, NaN], [1, 1, NaN], [1, 1, NaN], [1, 1, NaN], [1, 1, NaN], [1, 1, 20]]), null);
   assert.ok(Number.isNaN(sparse.avg7[7]!));
+});
+
+test('altNegSeries: the 7-day mean stops at the last archive day, not in the funding-lag gap, and lastFullAltMean is that last full window', () => {
+  const d0 = 20_000;
+  // Ten archive days at 10, then a 19-day gap and a live reading, as when funding is published a month behind.
+  const file = posFile(d0, Array.from({ length: 10 }, () => [1, 1, 10] as [number, number, number]));
+  const s = altNegSeries(file, { at: (d0 + 28) * DAY_MS + HOUR_MS, value: 55.8 });
+  assert.equal(s.time.length, 29);
+  assert.equal(s.raw[9], 10);
+  assert.ok(Number.isNaN(s.raw[10]!));
+  close(s.raw[28]!, 55.8, 1e-9);
+  // Every archive day has a mean; from the 7th, it is a full 7-day mean of 10. Nothing after day 9 (the last archive day).
+  for (let k = 0; k < 10; k++) {
+    assert.equal(s.n7[k], Math.min(k + 1, 7));
+    close(s.avg7[k]!, 10, 1e-9);
+  }
+  for (let k = 10; k < 29; k++) { assert.equal(s.n7[k], 0); assert.ok(Number.isNaN(s.avg7[k]!)); }
+  const mean = lastFullAltMean(s);
+  assert.ok(mean);
+  assert.equal(mean.t, (d0 + 9) * DAY_MS);
+  assert.equal(mean.n, 7);
+  close(mean.avg, 10, 1e-9);
+  // Without a live reading the last full mean is the same day.
+  const only = lastFullAltMean(altNegSeries(file, null));
+  assert.equal(only?.t, (d0 + 9) * DAY_MS);
+  close(only!.avg, 10, 1e-9);
+  // A short archive has no full window: the last partial mean is used.
+  const short = lastFullAltMean(altNegSeries(posFile(d0, [[1, 1, 8], [1, 1, 12]]), null));
+  assert.equal(short?.n, 2);
+  close(short!.avg, 10, 1e-9);
+  assert.equal(lastFullAltMean(altNegSeries(null, { at: d0 * DAY_MS, value: 14 })), null, 'a live reading alone has no mean');
 });
 
 test('nowLow: the pending (unconfirmed) low is now; with none pending, the last closed day is', () => {

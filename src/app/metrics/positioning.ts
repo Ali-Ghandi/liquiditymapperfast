@@ -390,18 +390,20 @@ export function fundingOnGrid(times: ArrayLike<number>, rates: DaySeries | null,
   return out;
 }
 
-/** Chart C's series: one entry per UTC day from the first reading to the last. `n7` is how many readings each day's `avg7` is the mean of. */
+/** Chart C's series: one entry per UTC day from the first reading to the last. `n7` is how many archive readings each day's `avg7` is the mean of. */
 export interface AltNegSeries { time: Float64Array; raw: Float64Array; avg7: Float64Array; n7: Float64Array; live: boolean }
 
 /**
  * The alt negative-funding share by UTC day: the archive's daily readings, plus `live` (a reading taken now) on its own day, replacing an
- * archive reading there. `avg7` is the mean of the archive readings held in the 7 days ending on each day (NaN where there are none, so
- * the line breaks rather than inventing a value); the live reading is left out of it, since it is measured another way (`altNegShare`
- * against `altNegShareFromArchive`) and the archive runs weeks behind. Empty when there are no readings.
+ * archive reading there. `avg7` is the mean of the archive readings held in the 7 days ending on each day, and only on days up to the last
+ * archive reading (NaN where there are none, and NaN in the funding-lag gap after the archive and on a later live day, so the line stops
+ * rather than inventing a value or leaking the last reading into the gap). The live reading is left out of the mean, since it is measured
+ * another way (`altNegShare` against `altNegShareFromArchive`) and the archive runs weeks behind. Empty when there are no readings.
  */
 export function altNegSeries(file: PositioningFile | null, live: { at: number; value: number } | null): AltNegSeries {
   const by = new Map<number, number>();
-  if (file) for (const [day, , , a] of file.days) if (Number.isFinite(a)) by.set(day, a);
+  let lastArchive = -Infinity;
+  if (file) for (const [day, , , a] of file.days) if (Number.isFinite(a)) { by.set(day, a); if (day > lastArchive) lastArchive = day; }
   const liveDay = live && Number.isFinite(live.value) ? Math.floor(live.at / DAY_MS) : null;
   if (liveDay !== null) by.set(liveDay, live!.value);
   if (!by.size) return { time: new Float64Array(0), raw: new Float64Array(0), avg7: new Float64Array(0), n7: new Float64Array(0), live: false };
@@ -409,12 +411,24 @@ export function altNegSeries(file: PositioningFile | null, live: { at: number; v
   const time = new Float64Array(n), raw = new Float64Array(n).fill(NaN), avg7 = new Float64Array(n).fill(NaN), n7 = new Float64Array(n);
   for (let k = 0; k < n; k++) { time[k] = (first + k) * DAY_MS; raw[k] = by.get(first + k) ?? NaN; }
   for (let k = 0; k < n; k++) {
+    if (first + k > lastArchive) continue; // the gap after the archive, and a later live day, have no mean
     let sum = 0, count = 0;
     for (let j = Math.max(0, k - 6); j <= k; j++) if (Number.isFinite(raw[j]!) && first + j !== liveDay) { sum += raw[j]!; count++; }
     if (count) avg7[k] = sum / count;
     n7[k] = count;
   }
   return { time, raw, avg7, n7, live: liveDay !== null };
+}
+
+/**
+ * The last full 7-day mean in a series (the last day whose window holds 7 archive readings), for chart C's legend. The mean stops at the
+ * last archive day, so this is that day's mean when the archive is dense, whether or not a later live reading extends the series. Null
+ * when there is no mean; a short history (fewer than 7 readings in any window) falls back to the last partial mean.
+ */
+export function lastFullAltMean(s: AltNegSeries): { t: number; avg: number; n: number } | null {
+  for (let i = s.time.length - 1; i >= 0; i--) if (s.n7[i]! >= 7 && Number.isFinite(s.avg7[i]!)) return { t: s.time[i]!, avg: s.avg7[i]!, n: s.n7[i]! };
+  for (let i = s.time.length - 1; i >= 0; i--) if (s.n7[i]! > 0 && Number.isFinite(s.avg7[i]!)) return { t: s.time[i]!, avg: s.avg7[i]!, n: s.n7[i]! };
+  return null;
 }
 
 /**
