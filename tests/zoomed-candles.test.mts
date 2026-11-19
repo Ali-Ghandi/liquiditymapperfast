@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { candleHolding, newestCandle, sameButLast, zoomedCandles } from '../src/app/zoomed-candles.ts';
 import { priceWindow } from '../src/app/price-history.ts';
 import { stripTimeframe } from '../src/app/measures/volume-strip.ts';
+import { CANDLE_TARGET_PX } from '../src/app/price-line.ts';
 import type { CandleRow } from '../src/app/store.ts';
 
 const H = 3_600_000, D = 24 * H;
@@ -57,10 +58,14 @@ test('the candle holding a moment, found among longer candles', () => {
   assert.equal(candleHolding(rows, 4 * H, -1), undefined);
 });
 
-test('the candles drawn are the Volume bars\' length: the shortest at least two pixels wide', () => {
-  assert.equal(stripTimeframe(H, 20 * D, 1_500).ms, H, '3.1 px: the chart\'s own');
-  assert.equal(stripTimeframe(H, 45 * D, 1_500).ms, 4 * H, '1.4 px an hour: four hours');
-  assert.equal(stripTimeframe(H, 400 * D, 1_500).ms, D);
+test('candles pick the shortest TF that stays about CANDLE_TARGET_PX wide', () => {
+  const H = 3_600_000, D = 24 * H, pw = 1_500;
+  // Hourly at 20 days: pw*H/(20D) ≈ 3.1 px < 7 → need 4h (≈12.5 px)
+  assert.equal(stripTimeframe(H, 20 * D, pw, CANDLE_TARGET_PX).ms, 4 * H);
+  // Hourly at ~8 days: ≈7.8 px → stay on 1h
+  assert.equal(stripTimeframe(H, 8 * D, pw, CANDLE_TARGET_PX).ms, H);
+  // Never finer than the chart TF
+  assert.equal(stripTimeframe(4 * H, 2 * D, pw, CANDLE_TARGET_PX).ms, 4 * H);
 });
 
 test('zoomed out past one read of the chart\'s candles, the price history is read at the length of the candles drawn', () => {

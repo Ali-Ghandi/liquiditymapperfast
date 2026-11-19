@@ -11,6 +11,9 @@ import type { CandleRow } from './store.ts';
  */
 export const CANDLE_LINE_PX = 2;
 
+/** Preferred candle body width (CSS px) when zooming: re-bin before bars go thinner. TradingView-like readability. */
+export const CANDLE_TARGET_PX = 7;
+
 /** A point of the line through the closes: where it is drawn, its candle's start, and whether the line breaks before it (a candle missing). */
 export interface LinePoint { x: number; y: number; t: number; i: number; brk: boolean }
 
