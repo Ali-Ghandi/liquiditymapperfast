@@ -78,7 +78,7 @@ import type { RangePoint, RangeTool } from '../range/tool.ts';
 import { paintDivergence, type Divergence } from '../delta/divergence.ts';
 import { TopBands, topMarks, type TopProfile } from '../measures/strip.ts';
 import { BAND_GAP, flowRows, volumeBand, type TimeRows } from '../measures/model.ts';
-import { CANDLE_LINE_PX, LINE_POINT_PX, countdown, lineSide, thinLine, type LinePoint } from '../price-line.ts';
+import { CANDLE_LINE_PX, CANDLE_TARGET_PX, LINE_POINT_PX, countdown, lineSide, thinLine, type LinePoint } from '../price-line.ts';
 import { candleInk, candleTone } from '../candle-colours.ts';
 import { candleHolding, newestCandle, sameButLast, zoomedCandles } from '../zoomed-candles.ts';
 import { candlesAt, formingCandle, pageNow, replaying, replayView } from '../replay/clock.ts';
@@ -1703,7 +1703,7 @@ export class HeatPane {
     const warm = this.scriptsReading() ? SCRIPT_WARM_BARS : 0;
     // Candles longer than the chart's while zoomed out (`drawnTf`): their length, so the exchange's candles before the chart's own are as long. Not
     // for a line, which keeps its own resolution, nor for a type only previewed in the menu.
-    const wide = state.chartType === 'line' ? tf : stripTimeframe(tf, v.t1 - v.t0, this.plotW).ms;
+    const wide = state.chartType === 'line' ? tf : stripTimeframe(tf, v.t1 - v.t0, this.plotW, CANDLE_TARGET_PX).ms;
     const key = `${state.marketId}|${state.seriesInstrument}|${tf}|${Math.floor(v.t0 / 60_000)}|${Math.ceil(v.t1 / 60_000)}|${Math.floor(now / 60_000)}|${this.plotW}|${history.answer?.tfMs ?? 0}|${warm}|${wide}`;
     let context = this.#overviewContext;
     if (!context || context.key !== key || context.candles !== state.candles) {
@@ -1780,14 +1780,14 @@ export class HeatPane {
   }
 
   /**
-   * How long the candles drawn are: the chart's own; zoomed out until those would be narrower than CANDLE_LINE_PX, the shortest longer
-   * timeframe whose candles are not (the Volume bars' rule, `stripTimeframe`), or the price history's bars before the chart's candles where
+   * How long the candles drawn are: the chart's own; zoomed out until those would be narrower than CANDLE_TARGET_PX, the shortest longer
+   * timeframe whose candles are not (`stripTimeframe` with `CANDLE_TARGET_PX`), or the price history's bars before the chart's candles where
    * they are longer still. The chart's own for a line, which runs through the closes at any zoom.
    */
   drawnTf(state: AppState = this.store.state): number {
     const tf = TIMEFRAMES[state.timeframe] ?? 3_600_000;
     if (this.#drawnType(state) === 'line' || !(this.plotW > 0)) return tf;
-    const v = this.view, wide = stripTimeframe(tf, v.t1 - v.t0, this.plotW).ms;
+    const v = this.view, wide = stripTimeframe(tf, v.t1 - v.t0, this.plotW, CANDLE_TARGET_PX).ms;
     return wide > tf ? Math.max(wide, this.#coarseAnswer(state)?.tfMs ?? 0) : tf;
   }
   /** Whether the candles drawn are longer ones (`drawnTf`), at least CANDLE_LINE_PX wide. */
