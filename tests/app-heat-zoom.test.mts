@@ -377,3 +377,13 @@ test('a sequence: the drag that lost the live candle, then a trend a frame at a 
   assert.equal(held, true);
   for (let i = 0, mark = 1008; i < 600; i++, mark -= 0.5) assert.deepEqual(followPrice({ ...view, mark, held }), view);
 });
+
+test('with the price axis fitted to the candles (autoscale), the wheel on the chart zooms time alone; Alt and the price scale still zoom price', () => {
+  assert.deepEqual(wheelAxes('plot', false, true), ['time']);
+  assert.deepEqual(wheelAxes('scale', false, true), ['price'], 'the price scale zooms price (and turns the fit off, HeatPane)');
+  assert.deepEqual(wheelAxes('time', false, true), ['time']);
+  const auto = wheelZoom(turn({ auto: true }));
+  assert.ok(auto.time && !auto.price, 'time only');
+  const alt = wheelZoom(turn({ auto: true, alt: true }));
+  assert.ok(alt.time && alt.price, 'Alt zooms both as before');
+});

@@ -69,7 +69,7 @@
  "**Drag an axis**": "**軸をドラッグ**",
  "Along the price or time scale to zoom it": "価格または時間のスケールに沿ってドラッグしてズームします",
  "Wheel on the price scale: the current price stays put while the scale around it changes.": "価格スケール上のホイール：スケールが周囲で変わる間、現在価格は動きません。",
- "Wheel on the chart: time and price zoom together around the live edge and the current price, which stay put. Candles get wider and the footprint appears.": "チャート上のホイール：時間と価格が一緒にズームし、ライブエッジと現在価格は動きません。ローソク足が広がり、フットプリントが現れます。",
+ "Wheel on the chart: time zooms around the live edge, and the price scale fits the candles on screen (Auto, the A at the foot of the price scale; Alt zooms price too). Candles get wider and the footprint appears.": "チャート上のホイール：ライブの端を中心に時間がズームし、価格スケールは画面上のローソク足に合わせます（自動、価格スケール下端の A。Alt で価格もズーム）。ローソク足が太くなりフットプリントが現れます。",
  "Drag to look around. Once the live candle is off the screen the chart stays where you left it; bring it back into view, or press Live, and it follows again.": "ドラッグして見回します。ライブのローソク足が画面の外に出ると、チャートは置いた場所にとどまります。画面に戻すか「ライブ」を押すと、また追従します。",
  "The panes share the time axis, so what you do to it happens to all of them. Drag the splitters between panes to resize them, and a pane by its grip (⠿) to move it. Sizes and places are remembered.": "パネルは時間軸を共有するので、時間軸への操作はすべてのパネルに反映されます。パネル間の仕切りをドラッグしてサイズを変え、パネルのグリップ（⠿）をドラッグして移動します。サイズと位置は記憶されます。",
  "Go to a moment, and Replay": "時点への移動とリプレイ",

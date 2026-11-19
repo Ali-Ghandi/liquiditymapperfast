@@ -1,7 +1,8 @@
 import type { CandleRow } from '../store.ts';
 
 /**
- * Zooming the map's axes with the pointer. The wheel on the chart zooms time and price together, by the same factor, so the picture keeps the
+ * Zooming the map's axes with the pointer. While the price axis is fitted to the candles on screen (auto-scale.ts, on by default) the wheel on
+ * the chart zooms time alone, as TradingView's does. Without the fit, the wheel on the chart zooms time and price together, by the same factor, so the picture keeps the
  * shape the person gave it; the wheel (or a drag) on the price scale zooms price alone and the wheel on the time strip time alone. Each axis holds
  * still the thing a person is watching: the live edge for time and the current price for price while the map follows the market (while the live
  * edge is on it), the point under the pointer once it stays where it was left (and always with Alt). Pure functions, so the rules are tested
@@ -27,10 +28,12 @@ export function regionAt(x: number, y: number, plotW: number, plotH: number): Ma
  * The axes a wheel turn zooms: on the chart both, time only with Shift (what the wheel did there before it zoomed both); on the price scale price, time
  * with Shift; on the time strip time, whatever the keys.
  */
-export function wheelAxes(region: MapRegion, shift: boolean): readonly ('time' | 'price')[] {
+export function wheelAxes(region: MapRegion, shift: boolean, auto = false): readonly ('time' | 'price')[] {
   if (region === 'time') return ['time'];
   if (region === 'scale') return [shift ? 'time' : 'price'];
-  return shift ? ['time'] : ['time', 'price'];
+  // With the price axis fitted to the candles on screen (auto-scale.ts), the wheel on the chart zooms time alone, as TradingView's does: the
+  // fit gives the price (a user, 2026-11-19: zooming out was "like zooming out of a picture").
+  return shift || auto ? ['time'] : ['time', 'price'];
 }
 
 /**
@@ -163,6 +166,8 @@ export function wheelFactor(deltaY: number, deltaMode: number, plotH: number): n
 /** One wheel turn on the map: where the pointer is and what the map shows now. Pixels are the plot's (`x` 0 at its left edge, `y` 0 at its top). */
 export interface WheelInput {
   region: MapRegion; shift: boolean; alt: boolean; follow: boolean;
+  /** The price axis is fitted to the candles on screen (HeatPane `#autoScale`): the wheel on the chart zooms time alone, unless Alt. */
+  auto?: boolean;
   deltaY: number; deltaMode: number;
   x: number; y: number; plotW: number; plotH: number;
   view: { t0: number; t1: number; p0: number; p1: number };
@@ -181,7 +186,7 @@ export interface WheelZoom { time: { factor: number; hold: number } | null; pric
  * rather than the shape changing as the other goes on. The price is held at the current price while the map follows the market, else at the pointer.
  */
 export function wheelZoom(o: WheelInput): WheelZoom {
-  const axes = wheelAxes(o.region, o.shift), raw = wheelFactor(o.deltaY, o.deltaMode, o.plotH), v = o.view, ref = priceRef(o.mark, v.p0, v.p1);
+  const axes = wheelAxes(o.region, o.shift, !!o.auto && !o.alt), raw = wheelFactor(o.deltaY, o.deltaMode, o.plotH), v = o.view, ref = priceRef(o.mark, v.p0, v.p1);
   const time = limitFactor(raw, v.t1 - v.t0, TIME_SPAN_MS.min, TIME_SPAN_MS.max), price = limitFactor(raw, v.p1 - v.p0, ref * PRICE_SPAN_SHARE.min, ref * PRICE_SPAN_SHARE.max);
   const both = axes.length === 2, factor = both ? (raw < 1 ? Math.max(time, price) : Math.min(time, price)) : axes[0] === 'time' ? time : price;
   const held = { follow: o.follow, alt: o.alt, mark: o.mark, markPixel: o.markY, nowPixel: o.nowX };

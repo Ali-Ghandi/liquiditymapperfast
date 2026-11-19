@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CANDLE_COLORS_DEFAULT, candleInk, candleTone, hasCandleColors, readCandleColors, themeEdge, themeEdgeHex, withCandleColor } from '../src/app/candle-colours.ts';
+import { CANDLE_COLORS_DEFAULT, candleInk, candleTone, hasCandleColors, readCandleColors, themeEdgeHex, withCandleColor } from '../src/app/candle-colours.ts';
 import { LAYOUT_KEYS, readSettings } from '../src/app/store.ts';
 import { PALETTES } from '../src/app/theme.ts';
 
@@ -27,14 +27,15 @@ test('a colour is set for one part of one direction and given back to the theme 
   assert.deepEqual(CANDLE_COLORS_DEFAULT, { up: {}, down: {} }, 'the defaults are never changed in place');
 });
 
-test('a filled candle keeps the theme\'s edge for its border and wick until they have colours of their own', () => {
-  assert.deepEqual(candleInk(CANDLE_COLORS_DEFAULT, 'up', dark, true), { body: dark.candleUp, border: themeEdge(dark), wick: themeEdge(dark) }, 'nothing chosen: as the chart drew before');
-  assert.deepEqual(candleInk(CANDLE_COLORS_DEFAULT, 'down', light, true), { body: light.candleDown, border: themeEdge(light), wick: themeEdge(light) });
+test('a filled candle is one colour, border and wick the body\'s (TradingView), until they have colours of their own', () => {
+  assert.deepEqual(candleInk(CANDLE_COLORS_DEFAULT, 'up', dark, true), { body: dark.candleUp, border: dark.candleUp, wick: dark.candleUp }, 'nothing chosen: all the body\'s');
+  assert.deepEqual(candleInk(CANDLE_COLORS_DEFAULT, 'down', light, true), { body: light.candleDown, border: light.candleDown, wick: light.candleDown });
   const c = { up: { body: '#ffffff', wick: '#888888' }, down: { border: '#ff0000' } };
-  assert.deepEqual(candleInk(c, 'up', dark, true), { body: '#ffffff', border: themeEdge(dark), wick: '#888888' });
-  assert.deepEqual(candleInk(c, 'down', dark, true), { body: dark.candleDown, border: '#ff0000', wick: themeEdge(dark) });
-  assert.equal(candleInk(c, 'up', dark, true, '#123456').body, '#123456', 'a script\'s colour for the candle fills its body');
+  assert.deepEqual(candleInk(c, 'up', dark, true), { body: '#ffffff', border: '#ffffff', wick: '#888888' });
+  assert.deepEqual(candleInk(c, 'down', dark, true), { body: dark.candleDown, border: '#ff0000', wick: dark.candleDown });
+  assert.equal(candleInk(c, 'up', dark, true, '#123456').body, '#123456', 'a script\'s colour is the body');
   assert.equal(candleInk(c, 'up', dark, true, '#123456').wick, '#888888', '... and leaves its own wick');
+  assert.equal(candleInk(CANDLE_COLORS_DEFAULT, 'up', dark, true, '#123456').wick, '#123456', '... and colours the wick it has none of its own');
 });
 
 test('an outline candle or a bar is drawn in its border and wick colours, else the body\'s, and a script\'s colour is its whole line', () => {

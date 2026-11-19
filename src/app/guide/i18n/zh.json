@@ -69,7 +69,7 @@
  "**Drag an axis**": "**拖动坐标轴**",
  "Along the price or time scale to zoom it": "沿价格或时间刻度拖动来缩放它",
  "Wheel on the price scale: the current price stays put while the scale around it changes.": "在价格刻度上滚轮：当前价格保持不动，周围的刻度随之变化。",
- "Wheel on the chart: time and price zoom together around the live edge and the current price, which stay put. Candles get wider and the footprint appears.": "在图表上滚轮：时间和价格一起缩放，实时边缘和当前价格保持不动。K 线变宽，footprint 出现。",
+ "Wheel on the chart: time zooms around the live edge, and the price scale fits the candles on screen (Auto, the A at the foot of the price scale; Alt zooms price too). Candles get wider and the footprint appears.": "在图表上滚动滚轮：时间围绕实时边缘缩放，价格刻度适配屏幕上的K线（自动，价格刻度底部的 A；按住 Alt 价格也会缩放）。K线变宽，足迹图出现。",
  "Drag to look around. Once the live candle is off the screen the chart stays where you left it; bring it back into view, or press Live, and it follows again.": "拖动来四处查看。实时 K 线移出屏幕后，图表停在你留下的位置；把它拖回视野，或按“实时”，图表就会重新跟随。",
  "The panes share the time axis, so what you do to it happens to all of them. Drag the splitters between panes to resize them, and a pane by its grip (⠿) to move it. Sizes and places are remembered.": "各面板共用时间轴，所以你对它做的操作会作用于所有面板。拖动面板之间的分隔条可调整大小，拖动面板的把手（⠿）可移动面板。大小和位置都会被记住。",
  "Go to a moment, and Replay": "跳转到某个时刻，以及回放",

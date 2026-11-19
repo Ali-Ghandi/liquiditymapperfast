@@ -45,7 +45,7 @@ import { FOOTPRINT_SETTLE_MS, FootprintData, FootprintLod, VENUE_LINES, candleBo
 import { layoutInfo, paintInfoBox, type InfoColor, type InfoLine, type InfoRect } from '../infobox.ts';
 import { TrapData, trapStatusText, trapText, type Trap } from '../traps.ts';
 import { GestureRecognizer, axisPinchScale, bindTouch, type GestureHandlers, type PinchInfo, type Pt } from '../touch.ts';
-import { PRICE_SPAN_SHARE, TIME_SPAN_MS, fitPrices, followPrice, holdPixel, limitFactor, liveEdgeShown, priceAtEdge, priceHeldAfter, priceRef, regionAt, wheelZoom, zoomedView } from './heat-zoom.ts';
+import { PRICE_SPAN_SHARE, TIME_SPAN_MS, fitPrices, followPrice, holdPixel, holdsPrice, limitFactor, liveEdgeShown, priceAtEdge, priceHeldAfter, priceRef, regionAt, wheelZoom, zoomedView } from './heat-zoom.ts';
 import { t, tn } from '../i18n.ts';
 import { el } from '../dom.ts';
 import { openMenu, type MenuItem } from '../menu.ts';
@@ -80,6 +80,9 @@ import { TopBands, topMarks, type TopProfile } from '../measures/strip.ts';
 import { BAND_GAP, flowRows, volumeBand, type TimeRows } from '../measures/model.ts';
 import { CANDLE_LINE_PX, CANDLE_TARGET_PX, LINE_POINT_PX, countdown, lineSide, thinLine, type LinePoint } from '../price-line.ts';
 import { candleInk, candleTone } from '../candle-colours.ts';
+import { candleBodyPx, candleWickPx } from '../candle-geometry.ts';
+import { CandleBatch } from '../candle-paint.ts';
+import { AUTO_MARGIN, autoScaleView, easeRange, mergeRange, visibleRange, withPrice, type PriceRange } from './auto-scale.ts';
 import { candleHolding, newestCandle, sameButLast, zoomedCandles } from '../zoomed-candles.ts';
 import { candlesAt, formingCandle, pageNow, replaying, replayView } from '../replay/clock.ts';
 import { TapeGL, type DustStyle } from '../tape/gl.ts';
@@ -101,6 +104,8 @@ import type { TpoInfo } from '../tpo/panel.ts';
 const TRAP_COLOR = '#f5a524';
 /** The amber a profile with no room is said in, as a column's header says a cut record. */
 const HIDDEN_COLOR = '#e6a700';
+/** The thin rim under the candles (candle-paint.ts): the page's own dark or light, so it shows only over the heat. */
+const candleRim = (p: { dark: boolean }): string => p.dark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.65)';
 
 /** Glows around whale bubbles, by colour, radius (whole px) and pixel ratio. */
 const glows = new Map<string, { image: HTMLCanvasElement; half: number }>();
@@ -458,6 +463,17 @@ export class HeatPane {
   #handled = false;
   /** Back to the live candle at the zoom the map has, shown while the map stays where it was left in time or a hand holds the price (`jumpToNow`). */
   readonly #liveButton = el('button', { class: 'map-live', type: 'button', tip: t('Back to the live candle at this zoom (keyboard: End). While the live candle is on screen the chart follows it.') }, t('Live'));
+  /**
+   * The price axis fitted to the candles on screen (auto-scale.ts), TradingView's "Auto": on until a hand moves the price on purpose (the price
+   * scale dragged or turned, Alt + wheel, a pan mostly up or down), on again with the A button at the foot of the price scale, a double click on
+   * the scale, or a recentre. Never kept: every page opens fitted.
+   */
+  #autoScale = true;
+  /** When the ease to the fit last stepped (performance.now()), 0 when it has landed. */
+  #autoAt = 0;
+  /** A one-finger pan's whole move so far, which decides whether it moved the price on purpose (`holdsPrice`). */
+  #touchMove = { x: 0, y: 0 };
+  readonly #autoButton = el('button', { class: 'map-auto on', type: 'button', tip: t('Auto: fit the price scale to the candles on screen (double click the price scale). Dragging the price scale turns it off.') }, 'A');
   #palette = PALETTES.light!;
   /** The palette the volume profile is drawn in (`#tradedPalette`), kept while neither the theme nor the colours chosen change. */
   #tradedPal: { key: string; base: Palette; p: Palette } | null = null;
@@ -480,7 +496,7 @@ export class HeatPane {
   #forceBaseline = true;
   /** The venues and size the colour window was taken for. */
   #baselineKey = '';
-  #drag: { x: number; y: number; shift: boolean; panning: boolean } | null = null;
+  #drag: { x: number; y: number; x0: number; y0: number; shift: boolean; panning: boolean } | null = null;
   /** The Range tool (set by the page), and a selection being dragged here: where it began, and where a finger last was. */
   range: RangeTool | null = null;
   #selecting: { x: number; y: number } | null = null;
@@ -701,8 +717,10 @@ export class HeatPane {
     this.#hoverCanvas.className = 'hover';
     this.#liveButton.hidden = true;
     this.#liveButton.addEventListener('click', () => this.jumpToNow());
+    this.#autoButton.setAttribute('aria-pressed', 'true');
+    this.#autoButton.addEventListener('click', () => this.setAutoScale(!this.#autoScale));
     // The pointer's layer right after the overlay: over it and under what is stacked over it, as when it was drawn into the overlay.
-    this.root.append(this.#glCanvas, this.#dustCanvas, this.#pulse, this.#drawEdit, this.overlay, this.#hoverCanvas, this.#liveButton);
+    this.root.append(this.#glCanvas, this.#dustCanvas, this.#pulse, this.#drawEdit, this.overlay, this.#hoverCanvas, this.#liveButton, this.#autoButton);
     host.append(this.root);
     this.gl = new HeatGL(this.#glCanvas);
     this.#ctx = this.overlay.getContext('2d')!;
@@ -914,6 +932,7 @@ export class HeatPane {
     this.#liveMargin = span * 0.08;
     if (candleDesk) this.#liveMargin = span * 0.18;
     this.view.set({ t0: now + this.#liveMargin - span, t1: now + this.#liveMargin, p0: prices.p0, p1: prices.p1 });
+    this.setAutoScale(true);
     this.#priceHeld = false; this.#panDx = 0; this.#panDy = 0; this.#settlePending = false; this.#followPaused = false; this.store.set({ followLive: true });
     this.#rasteredKey = ''; this.onView(); this.invalidate();
   }
@@ -932,6 +951,45 @@ export class HeatPane {
     this.#priceHeld = false; this.#panDx = 0; this.#panDy = 0; this.#settlePending = false; this.#followPaused = false; this.store.set({ followLive: true });
     this.#rasteredKey = ''; this.onView(); this.invalidate();
   }
+
+  /** Whether the price axis is fitted to the candles on screen (`#autoScale`). */
+  get autoScale(): boolean { return this.#autoScale; }
+  /** Fit the price axis to the candles on screen from now on, or leave it where it is (TradingView's Auto). */
+  setAutoScale(on: boolean): void {
+    if (this.#autoScale === on) return;
+    this.#autoScale = on; this.#autoAt = 0;
+    this.#autoButton.classList.toggle('on', on); this.#autoButton.setAttribute('aria-pressed', String(on));
+    if (on) this.#priceHeld = false;
+    this.invalidate();
+  }
+
+  /** What the fit takes in: the candles drawn across the view (the longer ones while zoomed out), the price history's line where it is drawn, the live price while it is on screen. */
+  #autoRange(state: AppState): PriceRange | null {
+    const v = this.view, chart = TIMEFRAMES[state.timeframe] ?? 3_600_000;
+    let range: PriceRange | null;
+    if (this.#drawnType(state) !== 'line' && this.#zoomedShown(state)) { const tf = this.drawnTf(state); range = visibleRange(this.zoomedRows(state, tf), tf, v.t0, v.t1); }
+    else range = visibleRange(this.candlesDrawn(state), chart, v.t0, v.t1);
+    if (this.#overviewShown && this.#overviewTarget) range = mergeRange(range, priceBounds(this.hub.priceHistory.answer, this.#overviewTarget.id, v, pageNow(), replaying()));
+    if (liveEdgeShown(v, pageNow())) range = withPrice(range, state.mark.price);
+    return range;
+  }
+  /** The room below the candles: the Volume strip's band where it shows, so the candles stand clear of its bars, else AUTO_MARGIN. */
+  #autoBottom(state: AppState, ph: number): number {
+    return state.show.volume ? Math.max(ph * AUTO_MARGIN, volumeBand(ph) + BAND_GAP + 6) : ph * AUTO_MARGIN;
+  }
+  /** One frame of the fit: the price axis eased toward the candles on screen (`autoScaleView`, `easeRange`), drawn again until it lands. */
+  #applyAutoScale(state: AppState): void {
+    const v = this.view, ph = this.plotH;
+    if (!this.#autoScale || this.#demo || !(v.t1 > v.t0) || !(ph > 1)) { this.#autoAt = 0; return; }
+    const target = autoScaleView(this.#autoRange(state), { plotH: ph, top: ph * AUTO_MARGIN, bottom: this.#autoBottom(state, ph), ref: priceRef(state.mark.price, v.p0, v.p1) });
+    if (!target) { this.#autoAt = 0; return; }
+    const now = performance.now(), dt = this.#autoAt ? now - this.#autoAt : 16, next = easeRange(v, target, dt, ph);
+    if (next.p0 !== v.p0 || next.p1 !== v.p1) { v.p0 = next.p0; v.p1 = next.p1; }
+    this.#autoAt = next.settled ? 0 : now;
+    if (!next.settled) this.invalidate();
+  }
+  /** A hand moved the price on purpose: the axis stays where it is put (TradingView turns Auto off then too). */
+  #autoOff(): void { if (this.#autoScale) this.setAutoScale(false); }
 
   /**
    * The rule TradingView's charts keep: the map follows the market while the live edge is on it, at the zoom it has, and stays where it was left
@@ -1121,10 +1179,14 @@ export class HeatPane {
         const shift = pageNow() + this.#liveMargin - this.view.t1;
         if (Math.abs(shift) > 0) { this.view.t0 += shift; this.view.t1 += shift; }
         // And the price (`followPrice`): the live candle stays on the map however far the market runs, unless a hand put it at an edge or off the map.
-        const price = followPrice({ p0: this.view.p0, p1: this.view.p1, mark: state.mark.price, held: this.#priceHeld });
-        if (price.p0 !== this.view.p0) { this.view.p0 = price.p0; this.view.p1 = price.p1; this.#rasteredKey = ''; }
+        // While the axis is fitted to the candles (`#applyAutoScale`) the fit keeps it there instead.
+        const price = this.#autoScale ? null : followPrice({ p0: this.view.p0, p1: this.view.p1, mark: state.mark.price, held: this.#priceHeld });
+        if (price && price.p0 !== this.view.p0) { this.view.p0 = price.p0; this.view.p1 = price.p1; this.#rasteredKey = ''; }
       }
     }
+    this.#applyAutoScale(state);
+    const autoTop = `${Math.max(0, this.plotH - 26)}px`;
+    if (this.#autoButton.style.top !== autoTop) this.#autoButton.style.top = autoTop;
     // Live shows while the map does not follow the live candle all the way: left where it was in time, or a hand holding the price (a look above or
     // below it, which a trend can carry the candle off).
     const away = (!state.followLive || this.#priceHeld) && !held && !replaying() && this.view.t1 > this.view.t0;
@@ -1835,6 +1897,17 @@ export class HeatPane {
     const wickInk = (d: 'up' | 'down'): string => filled && small ? state.candleColors[d].wick ?? ink[d].body : ink[d].wick;
     const shade = new Path2D(), wicks = { up: new Path2D(), down: new Path2D() }, bodies = { up: new Path2D(), down: new Path2D() }, borders = { up: new Path2D(), down: new Path2D() };
     const tick = slot < 4 ? 0 : Math.min(8, slot / 2 - 1);
+    // Filled: as TradingView draws them, in device pixels (candle-paint.ts), as the chart's own candles are.
+    if (filled) {
+      const dpr = ctx.getTransform().a || 1, tv = CandleBatch.for(ctx, candleBodyPx(slot, dpr), candleWickPx(slot, dpr), Math.max(1, Math.round(dpr)));
+      for (const c of rows) {
+        if (c[0] + tf < v.t0 || c[0] > v.t1) continue;
+        const d = c[4] >= c[1] ? 'up' : 'down';
+        tv.add(v.xOf(c[0] + tf / 2, pw), v.yOf(c[1], ph), v.yOf(c[4], ph), v.yOf(c[2], ph), v.yOf(c[3], ph), ink[d]);
+      }
+      tv.flush(ctx, candleRim(p));
+      return;
+    }
     for (const c of rows) {
       if (c[0] + tf < v.t0 || c[0] > v.t1) continue;
       const x = v.xOf(c[0] + tf / 2, pw), cx = Math.round(x) + 0.5, d = c[4] >= c[1] ? 'up' : 'down';
@@ -2415,6 +2488,10 @@ export class HeatPane {
     const thin = bar < CANDLE_LINE_PX;
     if (type === 'line' || thin) { this.#paintCloseLine(ctx, state, pw, ph, tf, layout, narrowing, hot, thin); return; }
     const history = this.historyCandles(state), count = history.length + state.candles.length;
+    // Filled candles away from the footprint's rows are drawn as TradingView draws them (candle-paint.ts): crisp, in device pixels, the wick
+    // centred and in the body's colour, one path a colour; the rings of unusual volume go over them afterwards.
+    const dpr = ctx.getTransform().a || 1, tv = type !== 'bars' && !hollow && narrowing <= 0.01 ? CandleBatch.for(ctx, candleBodyPx(bar, dpr), candleWickPx(bar, dpr), Math.max(1, Math.round(dpr))) : null;
+    const rings: (() => void)[] = [];
     for (let k = 0; k < count; k++) {
       // The exchange's candles before the chart's own, which are drawn over them; Highlights rings only the chart's own (its baseline is theirs).
       const ci = k - history.length, c = ci < 0 ? history[k]! : state.candles[ci]!;
@@ -2446,6 +2523,10 @@ export class HeatPane {
         ctx.globalAlpha = type === 'outline' ? 1 : 0.9; ctx.fillStyle = ink.wick;
         wick(thinWick, yh, top); wick(thinWick, top + height, yl);
         ctx.strokeStyle = ink.border; ctx.lineWidth = 1.5; ctx.strokeRect(...rect);
+      } else if (tv) {
+        const b = tv.add(x, yo, yc, yh, yl, ink);
+        if (ci >= 0 && hot(ci) && normal >= 3) rings.push(() => { ctx.save(); ctx.globalAlpha = 1; ctx.shadowColor = color; ctx.shadowBlur = 12; ctx.strokeStyle = color; ctx.lineWidth = 2.4; ctx.strokeRect(b.x - 2.5, b.y - 2.5, b.w + 5, b.h + 5); ctx.restore(); });
+        continue;
       } else {
         ctx.globalAlpha = outline;
         ctx.fillStyle = halo; wick(3.5, yh, yl);
@@ -2466,6 +2547,7 @@ export class HeatPane {
       }
     }
     ctx.globalAlpha = 1;
+    if (tv) { tv.flush(ctx, candleRim(p)); for (const ring of rings) ring(); }
   }
 
   /**
@@ -4421,7 +4503,7 @@ export class HeatPane {
         this.#unpin();
         if (!this.range?.armed && p.x >= 0 && p.x <= this.plotW && p.y <= this.plotH && this.draw?.down(p, true)) { this.#touchDraw = true; return; }
         if (this.range?.armed && p.x >= 0 && p.x <= this.plotW && p.y <= this.plotH) { this.#touchSelect = { start: p, at: p }; this.range.begin(this.#rangePoint(p.x, p.y)); return; }
-        this.#panKind = p.y > this.plotH ? 'time' : p.x > this.#w - AXIS_W ? 'price' : 'map';
+        this.#panKind = p.y > this.plotH ? 'time' : p.x > this.#w - AXIS_W ? 'price' : 'map'; this.#touchMove = { x: 0, y: 0 };
         this.#axisDrag = this.#panKind === 'map' ? null : { view: this.view.clone(), x: 0, y: 0 };
       },
       pan: (d, at) => { if (this.#touchDraw) { this.draw?.move(at, false, true); return; } if (this.#touchSelect) { this.#touchSelect.at = at; this.range?.move(this.#rangePoint(at.x, at.y)); return; } this.#touchPan(d); },
@@ -4448,7 +4530,7 @@ export class HeatPane {
     const flat = (i: PinchInfo): PinchInfo => ({ ...i, mid: { x: i.mid.x, y: 0 }, startMid: { x: i.startMid.x, y: 0 }, start: { ...i.start, dy: 0 } });
     return {
       down: base.down,
-      panStart: () => { this.#unpin(); this.#panKind = 'map'; this.#axisDrag = null; },
+      panStart: () => { this.#unpin(); this.#panKind = 'map'; this.#axisDrag = null; this.#touchMove = { x: 0, y: 0 }; },
       pan: d => this.#touchPan({ x: d.x, y: 0 }),
       panEnd: v => { this.#panKind = null; if (v && Math.abs(v.x) > 0.08) this.#startFling({ x: v.x, y: 0 }); this.invalidate(); },
       pinchStart: info => this.#pinchBegin(flat(info)),
@@ -4518,7 +4600,11 @@ export class HeatPane {
   #touchPan(d: Pt): void {
     const pw = this.plotW, ph = this.plotH, kind = this.#panKind;
     if (kind === 'map') {
-      this.view.pan(d.x, d.y, pw, ph); this.#panDx += d.x; this.#panDy += d.y; this.#settlePending = true;
+      // While the axis is fitted the pan moves time alone, until it has moved the price on purpose (`holdsPrice`): that turns the fit off.
+      this.#touchMove.x += d.x; this.#touchMove.y += d.y;
+      if (this.#autoScale && d.y !== 0 && holdsPrice(this.#touchMove.x, this.#touchMove.y)) this.#autoOff();
+      const dy = this.#autoScale ? 0 : d.y;
+      this.view.pan(d.x, dy, pw, ph); this.#panDx += d.x; this.#panDy += dy; this.#settlePending = true;
       this.#liveMargin = this.view.t1 - pageNow(); this.#rasteredKey = ''; this.onView(); this.invalidate();
       return;
     }
@@ -4526,6 +4612,7 @@ export class HeatPane {
     z.x += d.x; z.y += d.y;
     const v0 = z.view;
     if (kind === 'price') {
+      this.#autoOff();
       // Drag down to zoom out, up to zoom in, about the middle of the scale (the same sense as the right-button drag).
       const mid = (v0.p0 + v0.p1) / 2, span = Math.max((v0.p1 - v0.p0) * Math.exp(z.y * 0.006), this.#priceRef(this.store.state.mark.price) * PRICE_SPAN_SHARE.min);
       this.view.set({ ...v0, p0: mid - span / 2, p1: mid + span / 2 });
@@ -4551,9 +4638,11 @@ export class HeatPane {
     const tSpan = clamp((v0.t1 - v0.t0) / sx, 30_000, 400 * 86_400_000), pSpan = clamp((v0.p1 - v0.p0) / sy, mark * 1e-4, mark * 2);
     const mx = clamp(info.mid.x, 0, pw), my = clamp(info.mid.y, 0, ph);
     const t0 = z.t - mx / pw * tSpan, p1 = z.p + my / ph * pSpan;
-    this.view.set({ t0, t1: t0 + tSpan, p0: p1 - pSpan, p1 });
+    // While the axis is fitted to the candles a pinch scales time alone, as TradingView's does: the fit gives the price.
+    if (this.#autoScale) this.view.set({ t0, t1: t0 + tSpan, p0: this.view.p0, p1: this.view.p1 });
+    else this.view.set({ t0, t1: t0 + tSpan, p0: p1 - pSpan, p1 });
     // Moving the two fingers together is a pan as well: mostly up or down, it decides whether the price is held where it was put (`#settleFollow`).
-    this.#panDx = z.dx + info.mid.x - info.startMid.x; this.#panDy = z.dy + info.mid.y - info.startMid.y; this.#settlePending = true;
+    this.#panDx = z.dx + info.mid.x - info.startMid.x; this.#panDy = this.#autoScale ? z.dy : z.dy + info.mid.y - info.startMid.y; this.#settlePending = true;
     this.#liveMargin = this.view.t1 - pageNow(); this.#rasteredKey = ''; this.onView(); this.invalidate();
   }
 
@@ -4564,7 +4653,8 @@ export class HeatPane {
     let vx = limit(v.x), vy = limit(v.y), last = performance.now();
     const step = (now: number): void => {
       const dt = Math.min(48, now - last); last = now;
-      this.view.pan(vx * dt, vy * dt, this.plotW, this.plotH); this.#panDx += vx * dt; this.#panDy += vy * dt; this.#settlePending = true;
+      const fy = this.#autoScale ? 0 : vy * dt;
+      this.view.pan(vx * dt, fy, this.plotW, this.plotH); this.#panDx += vx * dt; this.#panDy += fy; this.#settlePending = true;
       this.#liveMargin = this.view.t1 - pageNow(); this.#rasteredKey = ''; this.onView(); this.invalidate();
       const decay = Math.exp(-dt / 260); vx *= decay; vy *= decay;
       this.#fling = Math.hypot(vx, vy) < 0.02 || document.hidden ? 0 : requestAnimationFrame(step);
@@ -4582,6 +4672,7 @@ export class HeatPane {
   /** The price scale is being dragged: `y` pixels below where it began zooms out by exp(0.006 per pixel), holding the price where the drag took hold. */
   #dragScale(y: number): void {
     const z = this.#scaleDrag; if (!z) return;
+    if (y !== z.y) this.#autoOff();
     const v0 = z.view, ph = this.plotH, ref = this.#priceRef(this.store.state.mark.price);
     const factor = limitFactor(Math.exp((y - z.y) * 0.006), v0.p1 - v0.p0, ref * PRICE_SPAN_SHARE.min, ref * PRICE_SPAN_SHARE.max);
     const anchor = v0.p0 + (1 - z.hold / ph) * (v0.p1 - v0.p0), span = (v0.p1 - v0.p0) * factor, p1 = anchor + z.hold / ph * span;
@@ -4594,15 +4685,17 @@ export class HeatPane {
     // In the plot's coordinates: the columns left of the map are at negative x.
     const local = (e: MouseEvent) => { const r = el.getBoundingClientRect(); return { x: e.clientX - r.left - this.#left, y: e.clientY - r.top }; };
     const touched = () => { this.#settlePending = true; this.#liveMargin = this.view.t1 - pageNow(); this.#rasteredKey = ''; this.onView(); this.invalidate(); };
-    // The wheel on the chart zooms time and price together by the same factor (the picture keeps its shape), on the price scale price alone, on the
+    // While the price axis is fitted to the candles (`#autoScale`, on by default) the wheel on the chart zooms time alone and the fit gives the price.
+    // Without the fit, the wheel on the chart zooms time and price together by the same factor (the picture keeps its shape), on the price scale price alone, on the
     // time strip time alone; Shift on the chart zooms time only (`wheelZoom`). Each axis holds still what is being watched: the live edge and the
     // current price while the map follows the market, so it swells and shrinks around them instead of sliding; the point under the pointer on a map
     // moved by hand, and with Alt.
     el.addEventListener('wheel', e => {
       e.preventDefault();
       const { x, y } = local(e), pw = this.plotW, ph = this.plotH, v = this.view, state = this.store.state, mark = state.mark.price;
-      const zoom = wheelZoom({ region: regionAt(x, y, pw, ph), shift: e.shiftKey, alt: e.altKey, follow: state.followLive, deltaY: e.deltaY, deltaMode: e.deltaMode, x, y, plotW: pw, plotH: ph, view: v, mark, markY: v.yOf(mark, ph), nowX: v.xOf(pageNow(), pw) });
-      if (zoom.price) v.zoomPrice(zoom.price.factor, zoom.price.hold, ph);
+      const zoom = wheelZoom({ region: regionAt(x, y, pw, ph), shift: e.shiftKey, alt: e.altKey, follow: state.followLive, auto: this.#autoScale, deltaY: e.deltaY, deltaMode: e.deltaMode, x, y, plotW: pw, plotH: ph, view: v, mark, markY: v.yOf(mark, ph), nowX: v.xOf(pageNow(), pw) });
+      // A turn that zooms the price (on the price scale, or Alt on the chart) is a hand on the price: the fit stops (`#autoOff`).
+      if (zoom.price) { this.#autoOff(); v.zoomPrice(zoom.price.factor, zoom.price.hold, ph); }
       if (zoom.time) v.zoomTime(zoom.time.factor, zoom.time.hold, pw);
       // Alt holds the point under the pointer: a zoom that leaves the current price at the top or bottom or off the map holds it there, so it is not
       // brought back to the middle from under the pointer; one that leaves it in the clear lets it go.
@@ -4644,7 +4737,7 @@ export class HeatPane {
         this.#scaleDrag = { y, view: v.clone(), hold: holdPixel({ axis: 'price', pointer: y, size: ph, alt: false, follow: false, mark, markPixel: v.yOf(mark, ph), nowPixel: 0 }), moved: false };
         el.setPointerCapture(e.pointerId); el.style.cursor = 'ns-resize'; return;
       }
-      this.#drag = { x, y, shift: e.shiftKey, panning: false }; el.setPointerCapture(e.pointerId);
+      this.#drag = { x, y, x0: x, y0: y, shift: e.shiftKey, panning: false }; el.setPointerCapture(e.pointerId);
     });
     el.addEventListener('pointermove', e => {
       if (e.pointerType === 'touch') return;
@@ -4678,12 +4771,17 @@ export class HeatPane {
       if (this.#zoomDrag) {
         // Drag right zooms the time axis in, drag up zooms the price axis in (left/down zoom out).
         const z = this.#zoomDrag;
-        this.view.set(zoomedView(z.view, z, { x, y }, this.plotW, this.plotH, this.#priceRef(this.store.state.mark.price))); z.moved = true; this.#settlePending = true;
+        // While the axis is fitted the drag zooms time alone, until it goes mostly up or down (`holdsPrice`): that zooms price too, and the fit stops.
+        if (this.#autoScale && holdsPrice(x - z.x, y - z.y)) this.#autoOff();
+        const zoomed = zoomedView(z.view, z, { x, y }, this.plotW, this.plotH, this.#priceRef(this.store.state.mark.price));
+        this.view.set(this.#autoScale ? { ...zoomed, p0: this.view.p0, p1: this.view.p1 } : zoomed); z.moved = true; this.#settlePending = true;
         this.#liveMargin = this.view.t1 - pageNow(); this.#rasteredKey = ''; this.onView(); this.invalidate();
         return;
       }
       if (this.#drag && (this.#drag.panning || !this.draw?.placing || press?.moved)) {
-        const dx = x - this.#drag.x, dy = this.#drag.shift ? 0 : y - this.#drag.y;
+        // While the axis is fitted the drag moves time alone, until it has moved the price on purpose (`holdsPrice`), which turns the fit off.
+        if (this.#autoScale && !this.#drag.shift && holdsPrice(x - this.#drag.x0, y - this.#drag.y0)) this.#autoOff();
+        const dx = x - this.#drag.x, dy = this.#drag.shift || this.#autoScale ? 0 : y - this.#drag.y;
         this.view.pan(dx, dy, this.plotW, this.plotH); this.#panDx += dx; this.#panDy += dy; this.#drag.x = x; this.#drag.y = y; this.#drag.panning = true; touched();
       }
       if (x >= 0 && x <= this.plotW && y <= this.plotH) this.store.set({ hover: { t: this.view.tOf(x, this.plotW), price: this.view.pOf(y, this.plotH), y, source: 'heat' } });
@@ -4743,7 +4841,12 @@ export class HeatPane {
     });
     el.addEventListener('pointerleave', e => { if (e.pointerType === 'touch') return; if (!this.draw?.dragging) this.draw?.leave(); if (!this.#scaleDrag) el.style.cursor = ''; this.#profileHover = null; this.#tradedHover = null; if (!this.#drag && !this.#zoomDrag) { this.store.set({ hover: null }); this.invalidateHover(); } });
     // A double click recentres the map, except while a tool is armed or when it selected a drawing (its first click was the drawing tools').
-    el.addEventListener('dblclick', () => { if (this.draw?.placing || this.store.state.vwapAnchoring || this.store.state.profileAnchoring || performance.now() - this.#drawClickAt < 600) return; this.fit(); });
+    // On the price scale it fits the price to the candles on screen again (TradingView's double click on the scale), the time left as it is.
+    el.addEventListener('dblclick', e => {
+      const at = local(e);
+      if (this.#onScale(at.x, at.y)) { this.setAutoScale(true); return; }
+      if (this.draw?.placing || this.store.state.vwapAnchoring || this.store.state.profileAnchoring || performance.now() - this.#drawClickAt < 600) return; this.fit();
+    });
     bindTouch(el, new GestureRecognizer(this.#touchHandlers()), () => this.#left);
   }
 }

@@ -6,7 +6,7 @@ import { lineSwatch, lowContrast } from './anchors/controls.ts';
 import { PALETTES, resolveThemeId, type Palette } from './theme.ts';
 import type { ChartType } from './chart-type.ts';
 import type { Store } from './store.ts';
-import { CANDLE_DIRECTIONS, CANDLE_PARTS, candleInk, hasCandleColors, themeBody, themeEdgeHex, withCandleColor, type CandleColors, type CandleDirection, type CandlePart } from './candle-colours.ts';
+import { CANDLE_DIRECTIONS, CANDLE_PARTS, candleInk, hasCandleColors, themeBody, withCandleColor, type CandleColors, type CandleDirection, type CandlePart } from './candle-colours.ts';
 
 /**
  * The Candle colours panel, from the Chart type menu: a rising and a falling candle drawn as the chart draws them, in the colours chosen, and a
@@ -26,19 +26,18 @@ const SWATCH_NAME: Readonly<Record<CandleDirection, Readonly<Record<CandlePart, 
   down: { body: () => t('Falling candles\' body'), border: () => t('Falling candles\' border'), wick: () => t('Falling candles\' wick') },
 };
 
-/** Filled candles take the theme's edge for their border and wick; outline candles and OHLC bars take the body's colour. The line is drawn as candles here. */
+/** Filled candles, outline candles and OHLC bars all take the body's colour for their border and wick (TradingView's look). The line is drawn as candles here. */
 const filledOf = (type: ChartType): boolean => type === 'candles' || type === 'line';
 
 /** The colour a part shows while it has none of its own: what the chart draws it in. */
-function shownColor(c: CandleColors, direction: CandleDirection, part: CandlePart, p: Palette, filled: boolean): string {
+function shownColor(c: CandleColors, direction: CandleDirection, part: CandlePart, p: Palette): string {
   const own = c[direction][part];
   if (own) return own;
-  const body = c[direction].body ?? themeBody(direction, p);
-  return part === 'body' ? body : filled ? themeEdgeHex(p) : body;
+  return c[direction].body ?? themeBody(direction, p);
 }
 
 export function buildCandleColorsPanel(store: Store, tools: HTMLElement, body: HTMLElement, rebuild: () => void): void {
-  const state = store.state, p = PALETTES[resolveThemeId(state.theme)] ?? PALETTES.dark!, type = state.chartType, filled = filledOf(type);
+  const state = store.state, p = PALETTES[resolveThemeId(state.theme)] ?? PALETTES.dark!, type = state.chartType;
   tools.append(helpButton('candles'));
   body.append(note(t('Colours of your own for the candles, in place of the theme\'s. A part left at the theme\'s colour follows the theme.')));
   // Hidden in the Chart type menu: the colours are kept, and nothing on the map shows them until a type draws the price again.
@@ -56,7 +55,7 @@ export function buildCandleColorsPanel(store: Store, tools: HTMLElement, body: H
     grid.append(el('span', { class: 'what', tip: PART_DESC[part]() }, el('span', { class: 'name', textContent: PART_NAME[part]() }), el('span', { class: 'desc', textContent: PART_DESC[part]() })));
     for (const direction of CANDLE_DIRECTIONS) {
       const own = state.candleColors[direction][part];
-      const swatch = lineSwatch(shownColor(state.candleColors, direction, part, p, filled), own !== undefined, SWATCH_NAME[direction][part](), color => set(direction, part, color), rebuild, `candle-${direction}-${part}`);
+      const swatch = lineSwatch(shownColor(state.candleColors, direction, part, p), own !== undefined, SWATCH_NAME[direction][part](), color => set(direction, part, color), rebuild, `candle-${direction}-${part}`);
       grid.append(el('span', { class: 'cell' }, swatch.swatch, ...(swatch.reset ? [swatch.reset] : [])));
     }
   }

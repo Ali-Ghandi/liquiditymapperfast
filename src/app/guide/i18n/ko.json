@@ -69,7 +69,7 @@
  "**Drag an axis**": "**축 드래그**",
  "Along the price or time scale to zoom it": "가격 또는 시간 눈금을 따라 드래그해서 확대/축소합니다",
  "Wheel on the price scale: the current price stays put while the scale around it changes.": "가격 눈금에서 휠: 주위의 눈금이 바뀌는 동안 현재 가격은 제자리에 있습니다.",
- "Wheel on the chart: time and price zoom together around the live edge and the current price, which stay put. Candles get wider and the footprint appears.": "차트에서 휠: 시간과 가격이 함께 확대/축소되며, 실시간 가장자리와 현재 가격은 제자리에 있습니다. 캔들이 넓어지고 풋프린트가 나타납니다.",
+ "Wheel on the chart: time zooms around the live edge, and the price scale fits the candles on screen (Auto, the A at the foot of the price scale; Alt zooms price too). Candles get wider and the footprint appears.": "차트에서 휠: 실시간 가장자리를 중심으로 시간이 확대/축소되고, 가격 축은 화면의 캔들에 맞춰집니다(자동, 가격 축 아래의 A; Alt를 누르면 가격도 확대/축소). 캔들이 넓어지고 풋프린트가 나타납니다.",
  "Drag to look around. Once the live candle is off the screen the chart stays where you left it; bring it back into view, or press Live, and it follows again.": "드래그해서 둘러보세요. 실시간 캔들이 화면 밖으로 나가면 차트는 둔 자리에 머뭅니다. 다시 화면에 들이거나 실시간을 누르면 다시 따라갑니다.",
  "The panes share the time axis, so what you do to it happens to all of them. Drag the splitters between panes to resize them, and a pane by its grip (⠿) to move it. Sizes and places are remembered.": "패널들은 시간 축을 공유하므로 시간 축에 하는 일은 모든 패널에 일어납니다. 패널 사이의 구분선을 드래그해 크기를 바꾸고, 패널의 손잡이(⠿)를 드래그해 옮깁니다. 크기와 위치는 기억됩니다.",
  "Go to a moment, and Replay": "특정 시점으로 이동, 그리고 리플레이",

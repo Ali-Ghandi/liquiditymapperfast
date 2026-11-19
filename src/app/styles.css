@@ -360,6 +360,12 @@ html[data-bar="compact"] .toast { bottom: 76px; }
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 6l6 6-6 6M13 6l6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 6l6 6-6 6M13 6l6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat; }
 .pane.heat .map-live[hidden] { display: none; }
+/* TradingView's "Auto" at the foot of the price scale: lit while the price axis is fitted to the candles on screen (heat-pane.ts `#autoScale`). */
+.pane.heat .map-auto { position: absolute; z-index: 3; right: 6px; top: 0; width: 22px; height: 20px; padding: 0; border-radius: var(--radius);
+  font: 600 11px/20px var(--font, system-ui, sans-serif); text-align: center; color: var(--muted); background: color-mix(in srgb, var(--panel) 86%, transparent);
+  border: 1px solid var(--line); cursor: pointer; }
+.pane.heat .map-auto.on { color: var(--ui, var(--accent)); border-color: var(--ui, var(--accent)); }
+.pane.heat .map-auto:hover { background: var(--panel); color: var(--text); }
 .pane.heat .map-live:hover,
 .pane.heat .map-recenter:hover, .pane.heat .map-select:hover, .pane.heat .map-goto:hover, .pane.heat .map-draw:hover, .pane.heat .map-layout:hover { background: var(--panel); }
 /* Where the named buttons over the top right of the map would hide its title and the figures beside it, they shrink to their drawings: judged on the

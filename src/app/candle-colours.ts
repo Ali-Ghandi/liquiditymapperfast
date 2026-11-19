@@ -5,8 +5,8 @@ import { mixHex, type Palette } from './theme.ts';
  * The candles' own colours (a user, 2026-11-11, who built a panel for them in his copy: "Colours of your own, in place of the theme's"):
  * for rising and for falling candles, the body, the border and the wick, each the theme's until one is chosen. The body is a candle's colour
  * wherever it has one colour only: the OHLC bars, the price line and its tag, the legend's figures. On outline candles the border and the
- * wick are the body's unless they have colours of their own; on filled ones they are the theme's edge (white on a dark page, near-black on a
- * light one), as they were before there were colours of one's own. A script that colours a candle (`$price.color`) still colours it.
+ * wick are the body's unless they have colours of their own, and on filled ones too since 2026-11-19 (TradingView's look; they were the
+ * theme's edge, white on a dark page and near-black on a light one, before). A script that colours a candle (`$price.color`) still colours it.
  */
 export type CandleDirection = 'up' | 'down';
 export type CandlePart = 'body' | 'border' | 'wick';
@@ -51,12 +51,14 @@ export const candleTone = (c: CandleColors, direction: CandleDirection, p: Pick<
 /** What a candle is drawn in. */
 export interface CandleInk { body: string; border: string; wick: string }
 /**
- * A candle's colours as drawn: filled (its body filled, the theme's edge around it and as its wick unless they have colours of their own),
+ * A candle's colours as drawn: filled (its body filled, its border and wick in the body's colour unless they have colours of their own),
  * or as an outline or an OHLC bar (the border and the wick the body's unless they have their own). A script's colour for the candle
  * (`script`, '' for none) is its body, and on an outline or a bar its whole line.
  */
 export function candleInk(c: CandleColors, direction: CandleDirection, p: Pick<Palette, 'dark' | 'candleUp' | 'candleDown'>, filled: boolean, script = ''): CandleInk {
   const own = c[direction], body = script || (own.body ?? themeBody(direction, p));
-  if (filled) return { body, border: own.border ?? themeEdge(p), wick: own.wick ?? themeEdge(p) };
+  // Filled candles are one colour, border and wick the body's, as TradingView draws them (a user, 2026-11-19: the theme's white or black edge
+  // made them "ugly"), until a border or a wick has a colour of its own.
+  if (filled) return { body, border: own.border ?? body, wick: own.wick ?? body };
   return script ? { body, border: script, wick: script } : { body, border: own.border ?? body, wick: own.wick ?? body };
 }

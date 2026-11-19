@@ -37,8 +37,8 @@ export function stepsFor(arrangement: Arrangement, coarse: boolean): Step[] {
   const look: Step = {
     id: 'look', targets: ['map'], side: 'inside', title: () => t('Look around'),
     body: () => coarse
-      ? t('Pinch to zoom: sideways for time, up and down for price. Drag to look back in time. Tap anything to read it, and use Recenter to come back to now.')
-      : t('The wheel zooms time and price together; drag to look back in time. Point at anything to read it, and press R to come back to now.'),
+      ? t('Pinch sideways to zoom time; the price scale fits the candles on screen. Drag to look back in time. Tap anything to read it, and use Recenter to come back to now.')
+      : t('The wheel zooms time and the price scale fits the candles on screen; drag to look back in time. Point at anything to read it, and press R to come back to now.'),
   };
   const flow: Step = {
     id: 'flow', targets: ['flow'], side: 'auto', title: () => t('Flow'),
@@ -52,7 +52,7 @@ export function stepsFor(arrangement: Arrangement, coarse: boolean): Step[] {
   // screen keeps `look` (pinch) instead.
   const zoom: Step = {
     id: 'zoom', targets: ['map'], side: 'inside', demo: 'rightDrag', title: () => t('Right-drag to zoom'),
-    body: () => t('Hold the right mouse button on the chart and drag: right or left zooms time, up or down zooms price. The wheel zooms both, a left drag looks back, R returns to now.'),
+    body: () => t('Hold the right mouse button on the chart and drag: right or left zooms time, up or down zooms price. The wheel zooms time, a left drag looks back, R returns to now.'),
   };
   const coin: Step = {
     id: 'coin', targets: ['coin'], side: 'below', title: () => t('Coin'),

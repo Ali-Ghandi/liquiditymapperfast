@@ -99,7 +99,7 @@ export const SECTIONS: readonly Section[] = [
         ['**Drag an axis**', 'Along the price or time scale to zoom it'],
       ] },
       { t: 'fig', id: 'zoom-price', caption: 'Wheel on the price scale: the current price stays put while the scale around it changes.' },
-      { t: 'fig', id: 'zoom-time', caption: 'Wheel on the chart: time and price zoom together around the live edge and the current price, which stay put. Candles get wider and the footprint appears.' },
+      { t: 'fig', id: 'zoom-time', caption: 'Wheel on the chart: time zooms around the live edge, and the price scale fits the candles on screen (Auto, the A at the foot of the price scale; Alt zooms price too). Candles get wider and the footprint appears.' },
       { t: 'fig', id: 'pan', caption: 'Drag to look around. Once the live candle is off the screen the chart stays where you left it; bring it back into view, or press Live, and it follows again.' },
       { t: 'p', text: 'The panes share the time axis, so what you do to it happens to all of them. Drag the splitters between panes to resize them, and a pane by its grip (⠿) to move it. Sizes and places are remembered.' },
     ],
