@@ -13,7 +13,7 @@ const packsDir = path.join(appRoot, 'i18n');
  * language (`script/lang/`: its words are the language's own, `Math` or `Invalid Date`, which scripts read as code; what a person reads of it
  * goes through `script/messages.ts`), and the tools offered to agents in the browser (`agent/`: English for agents, like the published reference).
  */
-const SKIPPED = /^(format\.ts|guide\/|venues\.ts|i18n|boot\.ts|worker\/|wire\.ts|watermark\.ts|theme\.ts$|browser\/feeds|script\/lang\/|agent\/)/;
+const SKIPPED = /^(format\.ts|guide\/|venues\.ts|i18n|boot\.ts|worker\/|wire\.ts|theme\.ts$|browser\/feeds|script\/lang\/|agent\/)/;
 
 /** Every English text the page asks to have translated (the calls to t() and tn() in the source, the guide's own chrome included). */
 const keysInPage = (): Set<string> => new Set(keysInSource().keys());
