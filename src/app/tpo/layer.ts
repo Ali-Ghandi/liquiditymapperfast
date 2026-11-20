@@ -215,7 +215,7 @@ export class TpoLayer {
     const markets = s.source === 'chosen' ? this.#markets(f, target) : [], hs = markets.map(m => this.hub.tpoHistory(m.id, barMs, 'main'));
     return {
       s, target, R, blockMs, barMs, main: target ? this.hub.tpoHistory(target.id, barMs, 'main') : null, windows, first, last, markets, hs,
-      ident: `${target?.id}|${s.source}|${markets.map(m => m.id).join(',')}|${R}|${s.share}|${blockMs}|${barMs}|${s.hollow}|${f.replay}`,
+      ident: `${target?.id}|${s.source}|${markets.map(m => m.id).join(',')}|${R}|${s.share}|${s.va}|${blockMs}|${barMs}|${s.hollow}|${f.replay}`,
       cells: Math.abs(f.view.yOf(0, f.ph) - f.view.yOf(R, f.ph)) >= 1.6,
     };
   }
@@ -467,7 +467,7 @@ export class TpoLayer {
     budget.built++;
     let blocks = blocksNow();
     if (developing) blocks = withLive(blocks, blockMs, live && live.t >= w.from && live.t < w.to ? live : null);
-    const profile = buildProfile(w, blocks, blockMs, R, s.share / 100, f.now, hollowed?.byBlock);
+    const profile = buildProfile(w, blocks, blockMs, R, s.share / 100, f.now, hollowed?.byBlock, s.va);
     // Every window in view, and the lines' windows beside them: past that, those no longer drawn go (never the ones drawn, which a window
     // waiting for a market draws as they were).
     if (this.#profiles.size > MAX_TPO_DRAWN + 200) { const drawn = new Set(c.windows.map(x => x.key)); for (const k of this.#profiles.keys()) if (!drawn.has(k)) this.#profiles.delete(k); }
@@ -504,6 +504,20 @@ export class TpoLayer {
     if (!g || g.fold > 0.5) return null;
     let max = 0; for (const list of g.rows.values()) max = Math.max(max, list.length);
     return { x0: g.x0, width: max * g.cw, cw: g.cw };
+  }
+
+  /**
+   * The prices of the profiles drawn last frame whose span reaches into [t0, t1] (each from its lowest row drawn to the top of its highest):
+   * with the candles hidden, the price axis fits these (heat-pane `#autoRange`), so a profile is seen whole.
+   */
+  rangeIn(t0: number, t1: number, now: number): { lo: number; hi: number } | null {
+    let lo = Infinity, hi = -Infinity;
+    for (const g of this.#geos) {
+      const p = g.profile;
+      if (p.from >= t1 || Math.min(p.to, Math.max(now, p.from + p.blockMs)) <= t0) continue;
+      lo = Math.min(lo, p.drawLo * p.R); hi = Math.max(hi, (p.drawHi + 1) * p.R);
+    }
+    return lo <= hi ? { lo, hi } : null;
   }
 
   /** Whether the TPO draws a window of this key now (folded or not). */

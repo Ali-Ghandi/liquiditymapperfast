@@ -22,12 +22,16 @@ test('a day of Binance BTC at $50 rows gives the calls study TPO-1 measured', ()
   assert.equal(blocks.length, 48);
   const p = buildProfile(win, blocks, HALF, 50, 0.7, NOW)!;
   // Research_Results/tpo_agreement_20261110/days.json, BTC 2026-09-28, the chart market's own profile.
-  assert.deepEqual({ poc: p.poc, vah: p.vah, val: p.val, top: p.top, bottom: p.bottom, sp: p.singles.length, lo: p.lo, hi: p.hi }, { poc: 1668, vah: 1673, val: 1654, top: 'tail', bottom: 'neither', sp: 0, lo: 1650, hi: 1699 });
+  // The value area as TradingView's TPO grows it (one row at a time, a tie to the row nearer the POC): 1673 and 1654 tie at 7 blocks, and the
+  // nearer (1673, then 1674) is taken alone; before 2026-11-20 a tie took both rows, giving 1673..1654 (the study's numbers).
+  assert.deepEqual({ poc: p.poc, vah: p.vah, val: p.val, top: p.top, bottom: p.bottom, sp: p.singles.length, lo: p.lo, hi: p.hi }, { poc: 1668, vah: 1674, val: 1655, top: 'tail', bottom: 'neither', sp: 0, lo: 1650, hi: 1699 });
+  const cbot = buildProfile(win, blocks, HALF, 50, 0.7, NOW, undefined, 'cbot')!;
+  assert.deepEqual([cbot.poc, cbot.vah, cbot.val], [1668, 1674, 1654], 'the CBOT handbook\'s two rows at a time');
   assert.equal(p.total, [...p.counts.values()].reduce((a, b) => a + b, 0));
   assert.equal(p.above + p.below + (p.counts.get(p.poc) ?? 0), p.total);
   assert.equal(p.developing, false);
   // As prices, as the Volume profile's levels are: the middle of the point of control's row, the value area's outer edges.
-  assert.deepEqual(levelsOfProfile(p), { poc: 1668.5 * 50, vah: 1674 * 50, val: 1654 * 50 });
+  assert.deepEqual(levelsOfProfile(p), { poc: 1668.5 * 50, vah: 1675 * 50, val: 1655 * 50 });
   // The initial balance is the first hour's range.
   const ib = blocks.slice(0, 2);
   assert.equal(p.ibh, Math.floor(Math.max(...ib.map(b => b.h)) / 50));
@@ -126,6 +130,23 @@ test('settings read back field by field; edits are kept per coin, kind of window
   assert.deepEqual(withEdits(s, 'merges', scope, () => []).merges, {});
   assert.deepEqual(withEdits(s, 'merges', 'ETH|day|30', l => [...l, 'q']).merges, { [scope]: ['k'], 'ETH|day|30': ['q'] });
   assert.deepEqual(withRows(s, 'BTC', 0).rows, {}); assert.deepEqual(withRows(s, 'ETH', 2).rows, { BTC: 20, ETH: 2 });
+});
+
+test('the value area grows as TradingView\'s TPO does: the larger next row, a tie to the row nearer the POC, then the higher', () => {
+  const area = (list: number[], share: number, method: 'tv' | 'cbot' = 'tv') => { const m = new Map(list.map((c, r) => [r, c])); const a = valueArea(m, 0, list.length - 1, share, method); return [a.poc, a.val, a.vah]; };
+  // POC row 3 (9). Next: row 4 (5) against row 2 (5), equally near: the higher (4); then row 5 (5) against row 2 (5): row 2 is nearer.
+  assert.deepEqual(area([1, 2, 5, 9, 5, 5, 1], 14 / 28), [3, 3, 4]);
+  assert.deepEqual(area([1, 2, 5, 9, 5, 5, 1], 19 / 28), [3, 2, 4]);
+  // It always holds the share.
+  for (const share of [0.5, 0.6, 0.68, 0.7, 0.8, 0.9]) {
+    const counts = [2, 4, 7, 7, 12, 15, 15, 11, 6, 6, 3, 1], [poc, val, vah] = area(counts, share), total = counts.reduce((a, b) => a + b, 0);
+    const held = counts.slice(val, vah + 1).reduce((a, b) => a + b, 0);
+    assert.ok(held >= share * total - 1e-9, `${share}: holds ${held} of ${total}`);
+    assert.ok(val <= poc && poc <= vah);
+  }
+  // Two rows at a time (CBOT): the pairs above and below are compared; a side with one row left offers that one.
+  assert.deepEqual(area([3, 3, 1, 9, 4, 0, 0], 0.7, 'cbot'), [3, 1, 5], 'the pair above (4 + 0) ties the pair below (1 + 3), as near: the higher; then row 6 alone (0) against the pair below');
+  assert.deepEqual(area([0, 1, 9, 3, 3, 0], 0.75, 'cbot'), [2, 2, 4], 'the pair above (6) beats the pair below (1)');
 });
 
 test('the value area does not take a row more for a share that comes out a hair over a whole count', () => {

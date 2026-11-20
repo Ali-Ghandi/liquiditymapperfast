@@ -10,7 +10,10 @@ import { venueMark } from '../venue-marks.ts';
 import { parsePick } from '../market-choice.ts';
 import { MAX_VWAP_MARKETS, VWAP_PICKS, pickTarget, seedPicks } from '../vwap/markets.ts';
 import { rowChoices } from './model.ts';
-import { MAX_TPO_COUNT, TPO_BLOCKS, blockMsOf, editScope, withRows, type TpoSettings } from './settings.ts';
+import { MAX_TPO_COUNT, TPO_ALPHAS, TPO_BLOCKS, blockMsOf, editScope, hasOwnTpoColors, withRows, withThemeTpoColors, withTpoColor, type TpoColors, type TpoSettings } from './settings.ts';
+import { lineSwatch, lowContrast } from '../anchors/controls.ts';
+import { PALETTES, resolveThemeId } from '../theme.ts';
+import { tpoInk } from './paint.ts';
 
 /**
  * What the map knows for the panel: the Auto row size for this coin (0 until its days are read), whose candles the TPO reads (the chart
@@ -47,20 +50,24 @@ export function buildTpoPanel(store: Store, tools: HTMLElement, body: HTMLElemen
   body.append(
     heading(t('Look')),
     selectRow(t('Draw as'), t('Letters while a block is tall enough to hold one, blocks below that (Auto), or always one of the two.'), [['auto', t('Auto')], ['blocks', t('Blocks')], ['letters', t('Letters')]], s.look, v => set({ look: v === 'blocks' || v === 'letters' ? v : 'auto' })),
-    selectRow(t('Colour'), t('By the time of each block, early warm to late cool; or by how many blocks its row holds.'), [['time', t('By time')], ['count', t('By row length')], ['ink', t('In ink')]], s.colour, v => set({ colour: v === 'count' || v === 'ink' ? v : 'time' })),
+    selectRow(t('Colour'), t('By the time of each block, early warm to late cool; by how many blocks its row holds; or two colours of your own, one inside the value area and one outside it.'), [['time', t('By time')], ['count', t('By row length')], ['ink', t('In ink')], ['two', t('Two colours')]], s.colour, v => set({ colour: v === 'count' || v === 'ink' || v === 'two' ? v : 'time' }, true)),
     switchRow(t('Laid out in time'), t('Each block in its own column at its half hour, behind its own candles, instead of folded into the profile (U).'), s.unfold, unfold => set({ unfold })),
     selectRow(t('Value area'), t('The share of the TPOs around the point of control that the value area holds.'), ['60', '65', '68', '70', '75', '80'].map(v => [v, `${v} %`] as [string, string]), String(s.share), v => set({ share: Number(v) })),
+    selectRow(t('Value area method'), t('How the value area grows from the point of control: one row at a time, the larger of the next row above and below (TradingView); or two rows at a time (the CBOT handbook).'), [['tv', t('One row at a time')], ['cbot', t('Two rows at a time')]], s.va, v => set({ va: v === 'cbot' ? 'cbot' : 'tv' })),
     heading(t('Marks')),
     switchRow(t('Initial balance, open and last'), t('The range of the first hour\'s blocks (the first block where a block is an hour or longer) as a bracket at the left (IBH, IBL), the window\'s first price and its last.'), s.ib, ib => set({ ib })),
     switchRow(t('Tails, poor extremes, single prints'), t('Two or more rows of one block at an extreme make a tail; a top or bottom row of two or more blocks is poor. Each call says how many of four row grids agree: moving the rows by part of a row changes these calls on many days.'), s.calls, calls => set({ calls })),
     switchRow(t('Numbers under each profile'), t('Its range, its initial balance, its TPOs above and below the point of control, and its volume.'), s.stats, stats => set({ stats })),
     switchRow(t('Hollow where one venue stood alone'), s.source === 'chosen' ? t('A row only one of the ticked markets reached, at least a row and 3 bp past where most of them stopped (each moved by its usual gap first), is drawn as an outline and not counted. Needs three markets or more.') : t('A block drawn as an outline where this market\'s wick went at least a row and 3 bp past where most of the market stopped, from the other venues switched on (each moved by its usual gap first). Rare on the largest markets, more common on smaller ones.'), s.hollow, hollow => set({ hollow })),
-    switchRow(t('Naked points of control'), t('Each earlier window\'s TPO point of control drawn on to the right (nPOC) until a later window trades through it.'), s.naked, naked => set({ naked })),
+    switchRow(t('Naked points of control'), t('Each earlier window\'s TPO point of control drawn on to the right until a later block trades through it, where it ends; one never traded through runs to the right edge (nPOC).'), s.naked, naked => set({ naked })),
     // Fork: the Volume profile's own bar profiles of the same windows, drawn over each window's time with the TPO (the Volume profile panel
     // has the same choice among its periods).
     switchRow(t('Volume profile in each window'), t('The traded-volume profile of each of the same windows (day, week or sessions), beside its TPO. The Volume profile must be on.'), store.state.traded.profiles === s.period && store.state.show.traded,
       on => { store.set({ traded: { ...store.state.traded, profiles: on ? store.state.tpo.period : null }, ...(on && !store.state.show.traded ? { show: { ...store.state.show, traded: true } } : {}) }); rebuild(); }),
     switchRow(t('Volume profile lines follow the TPO'), t('While the TPO shows, the Volume profile\'s lines of the same windows (point of control, value area, carried and untouched) are drawn at the TPO\'s levels, so there is one set of lines. With them off, the TPO draws its own point of control.'), s.lines, lines => set({ lines })),
+  );
+  tpoColours(store, body, rebuild);
+  body.append(
     heading(t('Split and merge')),
     note(t('Right-click a block to split its window there, or to merge it with the window before or after. On a touch screen, tap the block, then tap its box.')),
   );
@@ -71,6 +78,39 @@ export function buildTpoPanel(store: Store, tools: HTMLElement, body: HTMLElemen
     store.set({ tpo: { ...store.state.tpo, splits, merges } }); rebuild();
   } })));
   candlesFrom(store, body, rebuild, i);
+}
+
+/**
+ * The TPO's colours (2026-11-20, a user: "add features to edit its colors"): each a round swatch opening the system's colour picker, as the
+ * VWAP's and the Volume profile's are, the theme's until one is chosen and a way back to it; the blocks' opacity inside and outside the value
+ * area; and Reset colours. The Two colours look's own two colours show only with it.
+ */
+function tpoColours(store: Store, body: HTMLElement, rebuild: () => void): void {
+  const s = store.state.tpo, p = PALETTES[resolveThemeId(store.state.theme)] ?? PALETTES.dark!, ink = tpoInk(s, p);
+  const row = (key: keyof TpoColors, name: string, description: string, shown: string): HTMLElement[] => {
+    const own = s.colors[key], pick = lineSwatch(shown, own !== undefined, name, color => store.set({ tpo: withTpoColor(store.state.tpo, key, color) }), rebuild, `tpo-colour-${key}`);
+    const out: HTMLElement[] = [el('div', { class: 'field color-field' }, el('span', { class: 'label' }, el('span', { class: 'name', textContent: name }), el('span', { class: 'desc', textContent: description })),
+      el('span', { class: 'swatch-pair' }, ...(pick.reset ? [pick.reset] : []), pick.swatch))];
+    if (own && lowContrast(own, p)) out.push(note(t('{line}: this colour is hard to see on this theme.', { line: name })));
+    return out;
+  };
+  const set = (change: Partial<TpoSettings>): void => store.set({ tpo: { ...store.state.tpo, ...change } });
+  const alphas = TPO_ALPHAS.map(a => [String(a), `${a} %`] as [string, string]);
+  body.append(heading(t('Colours')));
+  if (s.colour === 'two') body.append(
+    ...row('inside', t('Value area blocks'), t('The blocks inside the value area.'), ink.two![0].fill),
+    ...row('outside', t('Blocks outside the value area'), t('The blocks above and below the value area.'), ink.two![1].fill));
+  body.append(
+    ...row('poc', t('Point of control'), t('Its row of blocks and its line across the window.'), ink.poc),
+    ...row('va', t('Value area high and low'), t('The two dashed lines at the value area\'s edges.'), ink.va),
+    ...row('ib', t('Initial balance'), t('The bracket over the first hour\'s range and its edges across the window.'), ink.ib),
+    ...row('singles', t('Single prints'), t('The rows only one block reached, and their shading across the window.'), ink.singles),
+    ...row('naked', t('Naked points of control'), t('The points of control carried on to the right.'), ink.naked),
+    selectRow(t('Value area opacity'), t('How solid the blocks inside the value area are.'), alphas, String(s.inAlpha), v => set({ inAlpha: Number(v) })),
+    selectRow(t('Outside opacity'), t('How solid the blocks outside the value area are: lower makes the value area stand out.'), alphas, String(s.outAlpha), v => set({ outAlpha: Number(v) })),
+  );
+  if (hasOwnTpoColors(s)) body.append(el('div', { class: 'session-add' }, el('button', { type: 'button', textContent: t('Reset colours'), tip: t('Every TPO colour and opacity back to the theme\'s.'),
+    onclick: () => { store.set({ tpo: withThemeTpoColors(store.state.tpo) }); rebuild(); } })));
 }
 
 /**

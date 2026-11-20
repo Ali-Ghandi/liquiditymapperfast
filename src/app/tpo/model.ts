@@ -114,8 +114,18 @@ export interface TpoProfile {
   developing: boolean;
 }
 
+/**
+ * How the value area grows from the point of control (2026-11-20, benchmarked on TradingView's TPO and the CBOT Market Profile handbook):
+ * - `tv`, one row at a time (TradingView's TPO): the row above the area and the row below it are compared and the one with more blocks is
+ *   taken; on a tie the one nearer the point of control, and where both are as near, the higher;
+ * - `cbot`, two rows at a time (Steidlmayer's CBOT handbook, Sierra Chart's default): the two rows above and the two below are compared as
+ *   pairs and the larger pair is taken (a tie: the pair nearer the point of control, then the higher); a side with one row left offers that one.
+ * Before 2026-11-20 a tie took both rows at once, which made the area one row too wide on a flat profile.
+ */
+export type ValueAreaMethod = 'tv' | 'cbot';
+
 /** The point of control and the value area of blocks-per-row counts (rows `lo`..`hi`), as rows. */
-export function valueArea(counts: ReadonlyMap<number, number>, lo: number, hi: number, share: number): { poc: number; vah: number; val: number; total: number } {
+export function valueArea(counts: ReadonlyMap<number, number>, lo: number, hi: number, share: number, method: ValueAreaMethod = 'tv'): { poc: number; vah: number; val: number; total: number } {
   const mid = (lo + hi) / 2;
   let poc = lo, best = -1, total = 0;
   for (let r = lo; r <= hi; r++) {
@@ -123,13 +133,17 @@ export function valueArea(counts: ReadonlyMap<number, number>, lo: number, hi: n
     if (c > best || (c === best && (Math.abs(r - mid) < Math.abs(poc - mid) || (Math.abs(r - mid) === Math.abs(poc - mid) && r < poc)))) { best = c; poc = r; }
   }
   // A share of a whole count that is a whole number in decimals (68 % of 75 is 51) can come out a hair over it in binary: not one row more.
-  const target = share * total - 1e-9;
-  let acc = counts.get(poc) ?? 0, up = poc + 1, dn = poc - 1, vah = poc, val = poc;
-  while (acc < target && (up <= hi || dn >= lo)) {
-    const cu = up <= hi ? (counts.get(up) ?? 0) : -1, cd = dn >= lo ? (counts.get(dn) ?? 0) : -1;
-    if (cu > cd) { acc += cu; vah = up++; }
-    else if (cd > cu) { acc += cd; val = dn--; }
-    else { acc += Math.max(0, cu) + Math.max(0, cd); if (up <= hi) vah = up++; if (dn >= lo) val = dn--; }
+  const target = share * total - 1e-9, step = method === 'cbot' ? 2 : 1;
+  let acc = counts.get(poc) ?? 0, vah = poc, val = poc;
+  const c = (r: number): number => counts.get(r) ?? 0;
+  while (acc < target && (vah < hi || val > lo)) {
+    // The next rows each side (as many as are left, up to `step`), what they hold, and how far the nearer of them is from the point of control.
+    const nu = Math.min(step, hi - vah), nd = Math.min(step, val - lo);
+    let su = -1, sd = -1;
+    if (nu > 0) { su = 0; for (let i = 1; i <= nu; i++) su += c(vah + i); }
+    if (nd > 0) { sd = 0; for (let i = 1; i <= nd; i++) sd += c(val - i); }
+    const up = su > sd || (su === sd && (vah + 1 - poc) <= (poc - (val - 1)));
+    if (up) { acc += su; vah += nu; } else { acc += sd; val -= nd; }
   }
   return { poc, vah, val, total };
 }
@@ -163,12 +177,12 @@ export const ibBlocksOf = (blockMs: number): number => Math.max(1, Math.round(HO
  * the rows would be too many. `hollow`: per block start, the rows drawn hollow (`hollowRows`). What one chosen market alone reached past a
  * block (`xh`, `xl`) is drawn hollow too, and never counted: the point of control, the value area and every call are the blocks' own.
  */
-export function buildProfile(win: { key: string; from: number; to: number }, blocks: readonly Block[], blockMs: number, R: number, share: number, now: number, hollow?: ReadonlyMap<number, ReadonlySet<number>>): TpoProfile | null {
+export function buildProfile(win: { key: string; from: number; to: number }, blocks: readonly Block[], blockMs: number, R: number, share: number, now: number, hollow?: ReadonlyMap<number, ReadonlySet<number>>, method: ValueAreaMethod = 'tv'): TpoProfile | null {
   if (!blocks.length || !(R > 0)) return null;
   const span = spanOf(blocks, R, 0);
   if (!span) return null;
   const { lo, hi } = span, e = extremes(blocks, R, 0, lo, hi), { counts } = e;
-  const area = valueArea(counts, lo, hi, share);
+  const area = valueArea(counts, lo, hi, share, method);
   const none: ReadonlySet<number> = new Set();
   let drawLo = lo, drawHi = hi;
   const rows: BlockRows[] = blocks.map(b => {
@@ -411,22 +425,30 @@ export function editedWindows(windows: readonly { key: string; from: number; to:
   return out.sort((x, y) => x.from - y.from || x.to - y.to);
 }
 
-/** A naked point of control: a window's TPO point of control (its row's middle price) that no later window has traded through. */
-export interface NakedPoc { key: string; price: number; from: number; to: number }
 /**
- * The naked points of control among `profiles` (fork, 2026-11-14): each closed window's point of control, kept while every window after it
- * stayed above or below it (the windows follow one another, so their ranges are the trading since). The window under way has none of its
- * own; it is what tests the others. Oldest first.
+ * A window's TPO point of control carried on to the right (TradingView's "extend until intersected", ATAS's and Exocharts' naked POC): its
+ * price, from the window's end until the start of the first later block that traded through it (`until`), or still naked (`until` null).
  */
-export function nakedPocs(profiles: readonly Pick<TpoProfile, 'key' | 'from' | 'to' | 'poc' | 'R' | 'high' | 'low' | 'developing'>[]): NakedPoc[] {
-  const list = [...profiles].sort((a, b) => a.from - b.from), out: NakedPoc[] = [];
+export interface PocRun { key: string; price: number; R: number; from: number; until: number | null }
+/**
+ * The points of control of the closed windows among `profiles`, each run on until a later block (of any later window: they follow one another,
+ * so their blocks are the trading since) reached its price. A window's own range is tested first, so only the window where it was touched is
+ * read block by block. The window under way has none of its own; it is what tests the others. Oldest first.
+ */
+export function pocRuns(profiles: readonly Pick<TpoProfile, 'key' | 'from' | 'to' | 'poc' | 'R' | 'high' | 'low' | 'developing' | 'blocks'>[]): PocRun[] {
+  const list = [...profiles].sort((a, b) => a.from - b.from), out: PocRun[] = [];
   for (let i = 0; i < list.length; i++) {
     const p = list[i]!;
     if (p.developing || !(p.R > 0)) continue;
     const price = (p.poc + 0.5) * p.R;
-    let touched = false;
-    for (let j = i + 1; j < list.length && !touched; j++) { const q = list[j]!; touched = q.low <= price && price <= q.high; }
-    if (!touched && i < list.length - 1) out.push({ key: p.key, price, from: p.from, to: p.to });
+    let until: number | null = null;
+    for (let j = i + 1; j < list.length && until === null; j++) {
+      const q = list[j]!;
+      if (q.from < p.to || !(q.low <= price && price <= q.high)) continue;
+      const hit = q.blocks.find(b => b.l <= price && price <= b.h);
+      until = hit ? hit.t : q.from;
+    }
+    out.push({ key: p.key, price, R: p.R, from: p.to, until });
   }
   return out;
 }

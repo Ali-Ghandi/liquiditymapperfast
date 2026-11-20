@@ -8,6 +8,8 @@
  * merged by hand, per coin, kind of window and block length.
  */
 import { readVwapPicks, type VwapSource } from '../vwap/markets.ts';
+import { readColor } from '../anchors/anchors.ts';
+import type { ValueAreaMethod } from './model.ts';
 
 const DAY = 86_400_000;
 /**
@@ -22,7 +24,19 @@ export const TPO_PERIODS: readonly TpoPeriod[] = ['day', 'week', 'sessions'];
 /** Blocks: letters while a block is tall enough, else plain blocks (`auto`), or always one of the two. */
 export type TpoLook = 'auto' | 'blocks' | 'letters';
 /** A block's colour: the time of its half hour (early to late), or how many blocks its row holds (thin to full), in a ramp of hues or (`ink`, fork) in the page's own ink. */
-export type TpoColour = 'time' | 'count' | 'ink';
+export type TpoColour = 'time' | 'count' | 'ink' | 'two';
+
+/**
+ * Colours chosen by hand (2026-11-20, a user: "add features to edit its colors"), each the theme's until one is chosen: the blocks inside and
+ * outside the value area (the Two colours look, TradingView's), the point of control (its row and line), the value area's high and low lines,
+ * the initial balance, the single prints, and the points of control carried on (nPOC).
+ */
+export interface TpoColors { inside?: string; outside?: string; poc?: string; va?: string; ib?: string; singles?: string; naked?: string }
+export const TPO_COLOR_KEYS: readonly (keyof TpoColors)[] = ['inside', 'outside', 'poc', 'va', 'ib', 'singles', 'naked'];
+/** The Two colours look's own defaults: TradingView's blue value area and grey rest. */
+export const TPO_TWO_DEFAULTS = { inside: '#2962ff', outside: '#787b86' } as const;
+/** How opaque the blocks are, in percent: inside the value area, and outside it (offered in steps of ten). */
+export const TPO_ALPHAS: readonly number[] = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 /** Block lengths offered, in minutes (0: by the period, 30 for a day or a session, 240 for a week). */
 export const TPO_BLOCKS: readonly number[] = [0, 15, 30, 60, 240];
 
@@ -64,13 +78,19 @@ export interface TpoSettings {
   splits: Record<string, string[]>;
   /** Merges per coin, kind of window and block length: each a calendar window's key, joined from its start to the window that ends there. */
   merges: Record<string, string[]>;
+  /** How the value area grows from the point of control (`valueArea`): TradingView's one row at a time, or the CBOT handbook's two. */
+  va: ValueAreaMethod;
+  /** Colours chosen by hand (none: the theme's). */
+  colors: TpoColors;
+  /** The blocks' opacity in percent, inside the value area and outside it. */
+  inAlpha: number; outAlpha: number;
   /** The settings' revision: 2 since every window in view became the default (a count of 5 saved before was the old default). */
   v: number;
 }
 
 export const TPO_DEFAULTS: Readonly<TpoSettings> = {
   on: false, period: 'day', block: 0, count: 0, source: 'chart', picks: [], look: 'auto', colour: 'time', share: 70, unfold: false, hollow: true,
-  ib: true, calls: true, stats: true, naked: false, lines: true, rows: {}, splits: {}, merges: {}, v: 2,
+  ib: true, calls: true, stats: true, naked: false, lines: true, rows: {}, splits: {}, merges: {}, va: 'tv', colors: {}, inAlpha: 100, outAlpha: 40, v: 2,
 };
 
 export const MAX_TPO_COUNT = 20;
@@ -104,6 +124,26 @@ function edits(saved: unknown, entry: (e: string) => boolean): Record<string, st
 }
 const splitEntry = (e: string): boolean => /^\d{10,14}@.+$/.test(e);
 
+const alpha = (value: unknown, fallback: number): number => typeof value === 'number' && TPO_ALPHAS.includes(value) ? value : fallback;
+
+/** Colours from storage: each a `#rrggbb` of a known key, the others dropped. */
+export function readTpoColors(saved: unknown): TpoColors {
+  const c = (saved && typeof saved === 'object' ? saved : {}) as Record<string, unknown>, out: TpoColors = {};
+  for (const key of TPO_COLOR_KEYS) { const v = readColor(c[key]); if (v) out[key] = v; }
+  return out;
+}
+
+/** The settings with one colour chosen (null: the theme's again). */
+export function withTpoColor(s: TpoSettings, key: keyof TpoColors, color: string | null): TpoSettings {
+  const { [key]: _old, ...rest } = s.colors, v = color === null ? undefined : readColor(color);
+  return { ...s, colors: v ? { ...rest, [key]: v } : rest };
+}
+
+/** Whether any colour or opacity differs from the defaults (the panel offers Reset colours then). */
+export const hasOwnTpoColors = (s: TpoSettings): boolean => Object.keys(s.colors).length > 0 || s.inAlpha !== TPO_DEFAULTS.inAlpha || s.outAlpha !== TPO_DEFAULTS.outAlpha;
+/** Every colour and opacity back to the defaults (the look chosen is kept). */
+export const withThemeTpoColors = (s: TpoSettings): TpoSettings => ({ ...s, colors: {}, inAlpha: TPO_DEFAULTS.inAlpha, outAlpha: TPO_DEFAULTS.outAlpha });
+
 /** Settings from storage, field by field: whatever is missing or not valid falls back to the default. */
 export function readTpo(saved: unknown): TpoSettings {
   const s = (saved && typeof saved === 'object' ? saved : {}) as Partial<Record<keyof TpoSettings, unknown>>, d = TPO_DEFAULTS;
@@ -119,7 +159,9 @@ export function readTpo(saved: unknown): TpoSettings {
     block: typeof s.block === 'number' && TPO_BLOCKS.includes(s.block) ? s.block : d.block,
     count, source: s.source === 'chosen' ? 'chosen' : 'chart', picks: readVwapPicks(s.picks), v: 2,
     look: s.look === 'blocks' || s.look === 'letters' ? s.look : 'auto',
-    colour: s.colour === 'count' || s.colour === 'ink' ? s.colour : 'time',
+    colour: s.colour === 'count' || s.colour === 'ink' || s.colour === 'two' ? s.colour : 'time',
+    va: s.va === 'cbot' ? 'cbot' : 'tv', colors: readTpoColors(s.colors),
+    inAlpha: alpha(s.inAlpha, d.inAlpha), outAlpha: alpha(s.outAlpha, d.outAlpha),
     share: typeof s.share === 'number' && Number.isFinite(s.share) && s.share >= 50 && s.share <= 90 ? Math.round(s.share) : d.share,
     unfold: flag(s.unfold, d.unfold), hollow: flag(s.hollow, d.hollow), ib: flag(s.ib, d.ib), calls: flag(s.calls, d.calls),
     stats: flag(s.stats, d.stats), naked: flag(s.naked, d.naked), lines: flag(s.lines, d.lines), rows, splits: edits(s.splits, splitEntry), merges: edits(s.merges, e => e.length > 0),

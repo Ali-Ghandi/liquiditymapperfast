@@ -42,6 +42,11 @@ export function chartChoicePatch<S extends { candles: boolean }>(choice: ChartCh
   if (choice === CHART_HIDDEN) return show.candles ? { show: { ...show, candles: false } } : {};
   return show.candles ? { chartType: choice } : { chartType: choice, show: { ...show, candles: true } };
 }
+/**
+ * The eye beside the market's name on the map's legend (2026-11-20, a user: "add the feature to hide candles, just like this on other scripts":
+ * to see the TPO better): it hides the price, as Hidden in the Chart type menu does, and shows it again in the type it had.
+ */
+export const togglePricePatch = <S extends { candles: boolean }>(chartType: ChartType, show: S): { chartType?: ChartType; show?: S } => chartChoicePatch(show.candles ? CHART_HIDDEN : chartType, show);
 export const chartChoiceName = (c: ChartChoice): string => c === CHART_HIDDEN ? t('Hidden') : chartTypeName(c);
 
 /** Each type's small drawing for its button (24 x 24, in the stroke of the text around it). */

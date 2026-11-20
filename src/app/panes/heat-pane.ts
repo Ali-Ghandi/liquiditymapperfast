@@ -47,8 +47,10 @@ import { GestureRecognizer, axisPinchScale, bindTouch, type GestureHandlers, typ
 import { PRICE_SPAN_SHARE, TIME_SPAN_MS, fitPrices, followPrice, holdPixel, holdsPrice, limitFactor, liveEdgeShown, priceAtEdge, priceHeldAfter, priceRef, regionAt, wheelZoom, zoomedView } from './heat-zoom.ts';
 import { t, tn } from '../i18n.ts';
 import { el } from '../dom.ts';
+import { setTip } from '../tip.ts';
 import { openMenu, type MenuItem } from '../menu.ts';
 import { blockMsOf, editScope, withEdits } from '../tpo/settings.ts';
+import { tpoInk } from '../tpo/paint.ts';
 import { currentCoin, scaledUsd } from '../coin.ts';
 import { liqLevelsUrl } from '../liq-url.ts';
 import { linesToAsk } from '../sizes.ts';
@@ -92,7 +94,7 @@ import type { DrawController } from '../draw/controller.ts';
 import { paintDrawings, paintEditing } from '../draw/paint.ts';
 import type { Projection } from '../draw/geometry.ts';
 import { wallRows, type CandleUnder } from '../draw/magnet.ts';
-import { CHART_HIDDEN, type ChartChoice, type ChartType } from '../chart-type.ts';
+import { CHART_HIDDEN, togglePricePatch, type ChartChoice, type ChartType } from '../chart-type.ts';
 import { candleCoverage, candlePriceRange, isCovered, priceBounds, priceOverviewNeeded, pricePointAt, pricePoints, priceWindow, uncoveredRuns, type Covered, type PricePoint, type PriceWindow } from '../price-history.ts';
 import { liveCanvas } from '../live-canvas.ts';
 import { pixelRatio, sharpens } from '../pixel-ratio.ts';
@@ -719,7 +721,8 @@ export class HeatPane {
     this.#autoButton.setAttribute('aria-pressed', 'true');
     this.#autoButton.addEventListener('click', () => this.setAutoScale(!this.#autoScale));
     // The pointer's layer right after the overlay: over it and under what is stacked over it, as when it was drawn into the overlay.
-    this.root.append(this.#glCanvas, this.#dustCanvas, this.#pulse, this.#drawEdit, this.overlay, this.#hoverCanvas, this.#liveButton, this.#autoButton);
+    this.root.append(this.#glCanvas, this.#dustCanvas, this.#pulse, this.#drawEdit, this.overlay, this.#hoverCanvas, this.#liveButton, this.#autoButton, this.#priceEyeBox);
+    this.#priceEye.addEventListener('click', () => { const s = this.store.state; this.store.set(togglePricePatch(s.chartType, s.show)); });
     host.append(this.root);
     this.gl = new HeatGL(this.#glCanvas);
     this.#ctx = this.overlay.getContext('2d')!;
@@ -951,6 +954,22 @@ export class HeatPane {
     this.#rasteredKey = ''; this.onView(); this.invalidate();
   }
 
+  /**
+   * The eye beside the market's name on the legend (2026-11-20): hides the candles (and everything drawn of the price: the longer candles
+   * zoomed out, the price history's line, the unusual-volume marks) or shows them again, as the scripts' eyes hide a script; kept as the
+   * Chart type menu's Hidden is (`show.candles`). Its look and size are the scripts' eye's (`.script-row-tool`, `.script-row-hide`).
+   */
+  readonly #priceEye = el('button', { type: 'button', class: 'script-row-hide' });
+  readonly #priceEyeBox = el('span', { class: 'script-row-tool price-eye-tool' }, this.#priceEye);
+  /** Say on the eye whether the price is hidden (only when that changes: a tooltip open on it stays). */
+  #syncPriceEye(hidden: boolean): void {
+    const eye = this.#priceEye;
+    if (eye.dataset.hidden === String(hidden)) return;
+    eye.dataset.hidden = String(hidden);
+    const words = hidden ? t('Show the candles') : t('Hide the candles (to see the TPO and the heatmap under them)');
+    eye.setAttribute('aria-label', words); eye.setAttribute('aria-pressed', String(hidden)); setTip(eye, words);
+  }
+
   /** Whether the price axis is fitted to the candles on screen (`#autoScale`). */
   get autoScale(): boolean { return this.#autoScale; }
   /** Fit the price axis to the candles on screen from now on, or leave it where it is (TradingView's Auto). */
@@ -970,6 +989,8 @@ export class HeatPane {
     else range = visibleRange(this.candlesDrawn(state), chart, v.t0, v.t1);
     if (this.#overviewShown && this.#overviewTarget) range = mergeRange(range, priceBounds(this.hub.priceHistory.answer, this.#overviewTarget.id, v, pageNow(), replaying()));
     if (liveEdgeShown(v, pageNow())) range = withPrice(range, state.mark.price);
+    // With the candles hidden (to read the TPO), the fit takes in the TPO's profiles in view whole, so none is cut at the top or bottom.
+    if (!this.#pricePainted(state) && state.tpo.on && this.#tpoLayer) range = mergeRange(range, this.#tpoLayer.rangeIn(v.t0, v.t1, pageNow()));
     return range;
   }
   /** The room below the candles: the Volume strip's band where it shows, so the candles stand clear of its bars, else AUTO_MARGIN. */
@@ -1719,10 +1740,12 @@ export class HeatPane {
     const scriptsW = Math.max(0, ...listed.map((_, k) => 18 + wide(scriptNames[k]!) + 6 + toolsW[k]! + (scriptValues[k] ? 6 + wide(scriptValues[k]!) : 0)), moreScripts ? wide(moreScripts) : 0);
     const textH = (detail ? 36 : 22) + (detail2 ? 14 : 0) + (note ? 14 : 0), scriptRows = listed.length + (moreScripts ? 1 : 0);
     ctx.font = '600 12px ui-sans-serif, system-ui, sans-serif';
-    const shownTitle = fitText(wide, phone ? `${name}  ${state.timeframe}` : title, room - tailW), titleW = wide(shownTitle);
+    // The eye that hides the candles stands right after the title, before the volume a phone puts there.
+    const eyeW = (touch ? SCRIPT_TOOL_W_TOUCH : SCRIPT_TOOL_W) + 6;
+    const shownTitle = fitText(wide, phone ? `${name}  ${state.timeframe}` : title, room - tailW - eyeW), titleW = wide(shownTitle);
     // The room the legend wants beside the corner tools, in steps (a candle's figures a pixel wider must not judge the tools again).
-    this.#legendNeed = Math.min(LEGEND_NEED_PX, Math.ceil(Math.max(detailNatural, wide(phone ? `${name}  ${state.timeframe}` : title) + tailW) / 16) * 16);
-    const plateW = Math.max(titleW + tailW, detailW, noteW, scriptsW) + 14, plateH = textH + (scriptRows ? scriptRows * lineH + 2 : 0);
+    this.#legendNeed = Math.min(LEGEND_NEED_PX, Math.ceil(Math.max(detailNatural, wide(phone ? `${name}  ${state.timeframe}` : title) + tailW + eyeW) / 16) * 16);
+    const plateW = Math.max(titleW + eyeW + tailW, detailW, noteW, scriptsW) + 14, plateH = textH + (scriptRows ? scriptRows * lineH + 2 : 0);
     this.#legendBox = { right: 6 + plateW, bottom: 6 + dy + plateH };
     // Shifted by a translation alone, undone after: a save and restore here would also take back the font, alignment and colours this leaves set,
     // which what is drawn after the legend inherits (Sol: the crosshair's labels took the title's 600 12px).
@@ -1731,7 +1754,7 @@ export class HeatPane {
     ctx.textAlign = 'left'; ctx.fillStyle = p.text; ctx.font = '600 12px ui-sans-serif, system-ui, sans-serif';
     ctx.fillText(shownTitle, 12, 16);
     ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
-    if (tail) { ctx.fillStyle = p.muted; ctx.fillText(tail, 12 + titleW + 10, 16); }
+    if (tail) { ctx.fillStyle = p.muted; ctx.fillText(tail, 12 + titleW + eyeW + 10, 16); }
     if (detail) { ctx.fillStyle = candleTone(state.candleColors, up ? 'up' : 'down', p); ctx.fillText(detail, 12, 32); if (detail2) ctx.fillText(detail2, 12, 46); }
     // The note stands under the prices, or under the title where there are none (it stood below the plate then, over what follows).
     if (note) { ctx.fillStyle = p.muted; ctx.fillText(note, 12, detail ? (detail2 ? 60 : 46) : 32); }
@@ -1751,6 +1774,9 @@ export class HeatPane {
     // The buttons are page elements over this canvas, placed in the pane's own pixels (the plot starts after the columns left of it).
     const canvas = ctx.canvas as HTMLCanvasElement;
     this.onScriptLegend(places.map(q => ({ id: q.id, x: canvas.offsetLeft + this.#left + q.x, y: canvas.offsetTop + dy + q.y })));
+    this.#syncPriceEye(!state.show.candles);
+    const eye = this.#priceEyeBox.style;
+    eye.left = `${Math.round(canvas.offsetLeft + this.#left + 12 + titleW + 4)}px`; eye.top = `${Math.round(canvas.offsetTop + dy + 16 - (touch ? 11 : 8))}px`;
   }
 
   /** Plan only when the data or a whole minute of the view changes; pointer redraws never scan coverage or start a read. */
@@ -3543,7 +3569,9 @@ export class HeatPane {
     const v = this.view, p = this.#tradedPalette(state), now = pageNow(), step = this.#levelStep();
     // `live`: the window under way (or what is on the chart), whose lines end at the right edge. `kind`: whose they are.
     // `rank`: how many windows of its series come after it among those shown, for the fading.
-    const segments: { x0: number; x1: number; levels: ValueLevels; name: string; naked: number | null; live: boolean; key: string; kind: LineKind | 'view'; estimate?: boolean; rank: number }[] = [];
+    const segments: { x0: number; x1: number; levels: ValueLevels; name: string; naked: number | null; live: boolean; key: string; kind: LineKind | 'view'; estimate?: boolean; rank: number; colors?: { poc: string; va: string } }[] = [];
+    // Lines that stand for the TPO's levels wear the TPO's own colours where some were chosen (its panel's Point of control, Value area high and low).
+    const tpoOwn = state.tpo.colors.poc || state.tpo.colors.va ? (() => { const k = tpoInk(state.tpo, p); return { poc: k.poc, va: k.va }; })() : undefined;
     const ids = this.#recordedIds(state), share = s.share / 100, ages = this.#ageRanks(state);
     // The lines are traded volume's when its column is chosen, else the first column's. Another measure than traded volume draws its own
     // levels, over the window the columns add up (what is on the chart, or the day, week or session under way): past days, weeks and
@@ -3576,7 +3604,7 @@ export class HeatPane {
         if (s.naked && w.to <= now) { const touched = this.#touchedAfter(state, levels.poc, w, step); naked = touched === undefined ? null : touched === null ? pw : v.xOf(touched, pw); }
         if (Math.max(x1, naked ?? x1) < 0 || x0 > pw) continue;
         const name = this.#windowName(state, w);
-        segments.push({ x0, x1, levels, name: drawn.tpo ? `${name} ${t('TPO')}` : source === 'candles' ? `≈ ${name}` : name, naked, live: w.to > now, key: w.key, kind: windowKind(w), rank: ages.get(w.key) ?? MAX_COUNT });
+        segments.push({ x0, x1, levels, name: drawn.tpo ? `${name} ${t('TPO')}` : source === 'candles' ? `≈ ${name}` : name, naked, live: w.to > now, key: w.key, kind: windowKind(w), rank: ages.get(w.key) ?? MAX_COUNT, ...(drawn.tpo && tpoOwn ? { colors: tpoOwn } : {}) });
       }
     }
     // The previous window's levels carried across the whole of the one under way, whatever the count shown and whether or not price has traded
@@ -3602,42 +3630,42 @@ export class HeatPane {
     const many = new Set([...segments, ...carries].map(x => x.kind)).size > 1, code = (kind: LineKind | 'view', what: string, estimate = false): string => { const text = many && kind !== 'view' ? `${KIND_CODE[kind]} ${what}` : what; return estimate ? `≈ ${text}` : text; };
     const weight = (kind: LineKind | 'view'): number => kind === 'month' ? 1.5 : kind === 'week' ? 1.25 : 1;
     const tags: KeyTag[] = [];
-    const tag = (key: string, price: number, text: string, rank: number, older: boolean): void => { if (s.tags) tags.push({ key: `vp|${key}`, y: v.yOf(price, ph), rank, text, older, color: p.poc }); };
+    const tag = (key: string, price: number, text: string, rank: number, older: boolean, color = p.poc): void => { if (s.tags) tags.push({ key: `vp|${key}`, y: v.yOf(price, ph), rank, text, older, color }); };
     const halo = p.dark ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.75)';
-    const line = (x0: number, x1: number, price: number, width: number, dash: number[]): void => {
+    const line = (x0: number, x1: number, price: number, width: number, dash: number[], color = p.poc): void => {
       const y = Math.round(v.yOf(price, ph)) + 0.5; if (y < -2 || y > ph + 2 || x1 <= x0) return;
       ctx.setLineDash(dash);
       ctx.strokeStyle = halo; ctx.lineWidth = width + 2; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
-      ctx.strokeStyle = p.poc; ctx.lineWidth = width; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+      ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
     };
     // Labels wait until every line is drawn, the points of control's first: one that would cover another already placed is left out.
-    const labels: { text: string; x: number; y: number; rank: number; alpha: number }[] = [];
-    const label = (text: string, x: number, price: number, rank: number): void => { const y = v.yOf(price, ph); if (y >= 6 && y <= ph - 6 && x >= 30) labels.push({ text, x, y, rank, alpha: ctx.globalAlpha }); };
+    const labels: { text: string; x: number; y: number; rank: number; alpha: number; color: string }[] = [];
+    const label = (text: string, x: number, price: number, rank: number, color = p.poc): void => { const y = v.yOf(price, ph); if (y >= 6 && y <= ph - 6 && x >= 30) labels.push({ text, x, y, rank, alpha: ctx.globalAlpha, color }); };
     ctx.save(); ctx.beginPath(); ctx.rect(0, 0, pw, ph); ctx.clip();
     for (const seg of segments) {
       // The older among the windows shown, the fainter (the two newest in full); their names keep a floor, and rank after the newer windows'.
       const fade = ageAlpha(seg.rank), older = seg.rank >= 1 ? 2 : 0;
       ctx.globalAlpha = fade;
       const x0 = Math.max(-4, seg.x0), x1 = Math.min(pw + 4, seg.x1), { poc, vah, val } = seg.levels;
-      const heavy = weight(seg.kind);
-      if (s.va) { line(x0, x1, vah, heavy, [6, 4]); line(x0, x1, val, heavy, [6, 4]); }
+      const heavy = weight(seg.kind), pc = seg.colors?.poc ?? p.poc, vc = seg.colors?.va ?? p.poc;
+      if (s.va) { line(x0, x1, vah, heavy, [6, 4], vc); line(x0, x1, val, heavy, [6, 4], vc); }
       // What is left of its untouched run beside its carry (all of it where it has none); the run is named where its last piece ends.
       const hide = hidden.get(seg.key) ?? null, pieces = s.poc && seg.naked !== null && seg.naked > x1 ? runPieces(x1, seg.naked, hide) : [];
       const runsOn = pieces.length > 0, runsTo = runsOn ? Math.min(pw, pieces[pieces.length - 1]![1]) : x1;
-      if (s.poc) { line(x0, x1, poc, 2 * heavy, []); for (const [a, b] of pieces) line(a, Math.min(pw + 4, b), poc, 2 * heavy, [2, 3]); }
+      if (s.poc) { line(x0, x1, poc, 2 * heavy, [], pc); for (const [a, b] of pieces) line(a, Math.min(pw + 4, b), poc, 2 * heavy, [2, 3], pc); }
       ctx.setLineDash([]);
       // The chart window's lines are named only beside a period's, which carry their own names.
       const base = seg.kind === 'view' && many ? t('Chart') : seg.name, own = seg.estimate ? `≈ ${base}`.trim() : base, name = own ? `${own} ` : '', pocText = `${name}${t('POC')} ${fmtPrice(poc, step)}`;
       ctx.globalAlpha = Math.max(LABEL_FLOOR, fade);
       if (s.labels && x1 - x0 > 70) {
         // The point of control is named where it ends: at the end of its run when it runs on.
-        if (s.poc) label(pocText, runsTo, poc, (runsOn ? 2 : 0) + older);
-        if (s.va) { label(`${name}${t('VAH')} ${fmtPrice(vah, step)}`, x1, vah, 1 + older); label(`${name}${t('VAL')} ${fmtPrice(val, step)}`, x1, val, 1 + older); }
-      } else if (s.labels && runsOn && runsTo - Math.max(0, x1) > 70) label(pocText, runsTo, poc, 2 + older);   // only its run is on the chart
+        if (s.poc) label(pocText, runsTo, poc, (runsOn ? 2 : 0) + older, pc);
+        if (s.va) { label(`${name}${t('VAH')} ${fmtPrice(vah, step)}`, x1, vah, 1 + older, vc); label(`${name}${t('VAL')} ${fmtPrice(val, step)}`, x1, val, 1 + older, vc); }
+      } else if (s.labels && runsOn && runsTo - Math.max(0, x1) > 70) label(pocText, runsTo, poc, 2 + older, pc);   // only its run is on the chart
       // A longer period's tags go first where two would meet.
       const first = 1 - (heavy - 1);
-      if (seg.live) { if (s.poc) tag(`${seg.key}|poc`, poc, code(seg.kind, t('POC'), seg.estimate), first, false); if (s.va) { tag(`${seg.key}|vah`, vah, code(seg.kind, t('VAH'), seg.estimate), first + 1.5, false); tag(`${seg.key}|val`, val, code(seg.kind, t('VAL'), seg.estimate), first + 1.5, false); } }
-      else if (runsOn && seg.naked! >= pw && pieces[pieces.length - 1]![1] >= pw) tag(`${seg.key}|poc`, poc, code(seg.kind, t('POC')), 8 - (heavy - 1), true);   // untouched to now: outlined, as an older key level
+      if (seg.live) { if (s.poc) tag(`${seg.key}|poc`, poc, code(seg.kind, t('POC'), seg.estimate), first, false, pc); if (s.va) { tag(`${seg.key}|vah`, vah, code(seg.kind, t('VAH'), seg.estimate), first + 1.5, false, vc); tag(`${seg.key}|val`, val, code(seg.kind, t('VAL'), seg.estimate), first + 1.5, false, vc); } }
+      else if (runsOn && seg.naked! >= pw && pieces[pieces.length - 1]![1] >= pw) tag(`${seg.key}|poc`, poc, code(seg.kind, t('POC')), 8 - (heavy - 1), true, pc);   // untouched to now: outlined, as an older key level
     }
     // The carries: the previous window's lines across the one under way, long-dashed and faint, named "Previous …", after the current ones.
     for (const c of carries) {
@@ -3659,7 +3687,7 @@ export class HeatPane {
       const w = ctx.measureText(l.text).width + 8, right = Math.min(pw - 2, l.x - 2), box = { x0: right - w, x1: right, y0: l.y - 7, y1: l.y + 7 };
       if (!this.#labels.claim(box)) continue;
       ctx.globalAlpha = l.alpha * 0.85; ctx.fillStyle = p.panel; ctx.fillRect(box.x0, box.y0, w, 14);
-      ctx.globalAlpha = l.alpha; ctx.fillStyle = p.poc; ctx.fillText(l.text, right - 4, l.y);
+      ctx.globalAlpha = l.alpha; ctx.fillStyle = l.color; ctx.fillText(l.text, right - 4, l.y);
     }
     ctx.restore(); ctx.globalAlpha = 1; ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
     return tags;
