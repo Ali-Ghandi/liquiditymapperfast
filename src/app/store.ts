@@ -245,6 +245,12 @@ export interface AppState {
   /** The clock the page's times are on: the computer's own, or UTC. */
   timeZone: TimeZone;
   /**
+   * The box of figures beside the mouse pointer over the map and the panes (the TPO row, the footprint cell, the book's price, a script's
+   * value…). Off by default (the person, 2026-11-20: "it's just annoying"): the crosshair, the axis labels and the legend say where the
+   * pointer is. A finger's held crosshair keeps its box either way, a phone having no other way to read a cell (hover-info.ts).
+   */
+  hoverInfo: boolean;
+  /**
    * Shared cursor: `t` is authoritative; each pane converts it to its own x. `price` is only set by the heatmap. `touch` marks a hover
    * that a finger pinned (it stays until the next tap or drag, and its readouts sit above the finger).
    */
@@ -263,7 +269,7 @@ export interface AppState {
 
 type Listener = (state: AppState, changed: ReadonlySet<keyof AppState>) => void;
 
-const PERSISTED: (keyof AppState)[] = ['keepAwake', 'tabPrice', 'tabIcon', 'phoneHistory', 'scriptBars', 'barCollapsed', 'material', 'waveStrength', 'timeZone', 'timeframe', 'layer', 'show', 'cvd', 'flowView', 'tns', 'trades', 'heatmapSource', 'disabledVenues', 'scope', 'highlight', 'absorption', 'tradeBubbles', 'liquidations', 'keyLevels', 'liqLevels', 'vwap', 'tpo', 'footprint', 'delta', 'sounds', 'heat', 'lt', 'barStats', 'barStatOptions', 'grouping', 'ladderMode', 'ladderShow', 'ladderCurves', 'pullStack', 'ladderCues', 'depthBands', 'depthSource', 'liqBands', 'ladderVenue', 'ladderVenues', 'theme', 'themePicked', 'themeSlots', 'defaultsRev', 'traded', 'oiMarkets', 'oiChange', 'fundingVenue', 'fundingTable', 'oiTable', 'lsTable', 'ltTable', 'deltaTable', 'lsMetric', 'customMarkets', 'draw', 'chartType', 'candleColors'];
+const PERSISTED: (keyof AppState)[] = ['keepAwake', 'tabPrice', 'tabIcon', 'phoneHistory', 'scriptBars', 'barCollapsed', 'hoverInfo', 'material', 'waveStrength', 'timeZone', 'timeframe', 'layer', 'show', 'cvd', 'flowView', 'tns', 'trades', 'heatmapSource', 'disabledVenues', 'scope', 'highlight', 'absorption', 'tradeBubbles', 'liquidations', 'keyLevels', 'liqLevels', 'vwap', 'tpo', 'footprint', 'delta', 'sounds', 'heat', 'lt', 'barStats', 'barStatOptions', 'grouping', 'ladderMode', 'ladderShow', 'ladderCurves', 'pullStack', 'ladderCues', 'depthBands', 'depthSource', 'liqBands', 'ladderVenue', 'ladderVenues', 'theme', 'themePicked', 'themeSlots', 'defaultsRev', 'traded', 'oiMarkets', 'oiChange', 'fundingVenue', 'fundingTable', 'oiTable', 'lsTable', 'ltTable', 'deltaTable', 'lsMetric', 'customMarkets', 'draw', 'chartType', 'candleColors'];
 function readSaved(): Partial<AppState> {
   try { const raw = window.localStorage.getItem('hlm-app-v2'); return raw ? JSON.parse(raw) as Partial<AppState> : {}; } catch { return {}; }
 }
@@ -403,7 +409,7 @@ export function initialState(phone: boolean = isPhone(), touch: boolean = isCoar
   const state: AppState = {
     connected: false, status: t('connecting'), markets: [], marketId: '', seriesInstrument: '', mark: { price: 0, asOf: 0 }, levels: null, bookGone: {},
     layers: {}, candles: [], oi: [], oiInstrument: '', oiParts: [], oiPrice: 0, oiReading: false, oiFine: [], sounds: { ...DEFAULT_SOUNDS }, soundState: 'locked', lastSound: 0, vwapAnchoring: false, anchorMove: null, anchorPreview: null, profileAnchoring: false, heatmapSource: 'aggregated', disabledVenues: [],
-    ladderVenue: '', ladderVenues: [], replay: null, draw: readDrawSettings(undefined), theme: DEFAULT_THEME, themePicked: false, themeSlots: { light: DEFAULT_THEME, dark: PHONE_DARK_THEME }, defaultsRev: DEFAULTS_REV, material: 'solid', waveStrength: WAVE_STRENGTH_DEFAULT, followLive: true, keepAwake: false, tabPrice: true, tabIcon: true, phoneHistory: 'auto', scriptBars: readScriptBars(undefined, false), barCollapsed: false, timeZone: 'local', hover: null, bookHover: null, range: null, rangeTool: false,
+    ladderVenue: '', ladderVenues: [], replay: null, draw: readDrawSettings(undefined), theme: DEFAULT_THEME, themePicked: false, themeSlots: { light: DEFAULT_THEME, dark: PHONE_DARK_THEME }, defaultsRev: DEFAULTS_REV, material: 'solid', waveStrength: WAVE_STRENGTH_DEFAULT, followLive: true, keepAwake: false, tabPrice: true, tabIcon: true, phoneHistory: 'auto', scriptBars: readScriptBars(undefined, false), barCollapsed: false, hoverInfo: false, timeZone: 'local', hover: null, bookHover: null, range: null, rangeTool: false,
     ...saved, ...readSettings(saved),
   };
   // A save's measure strip was read into the profile along the top (`readSettings`): it is no setting of its own any more.
@@ -415,6 +421,7 @@ export function initialState(phone: boolean = isPhone(), touch: boolean = isCoar
   state.sounds = readSounds(saved.sounds);
   state.draw = readDrawSettings(saved.draw);
   state.timeZone = saved.timeZone === 'utc' ? 'utc' : 'local';
+  state.hoverInfo = saved.hoverInfo === true;
   // Every save writes the theme down whether chosen or not (Terminal for a day on 2026-10-17): one that was not picked from the menu or the
   // light-or-dark key is the page's default of its time, and the theme follows `autoTheme` below; the saves since carry the pick.
   state.themePicked = saved.themePicked === true;

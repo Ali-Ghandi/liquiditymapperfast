@@ -1,5 +1,6 @@
 import { el } from './dom.ts';
 import type { InfoLine } from './infobox.ts';
+import { hoverInfoShown } from './hover-info.ts';
 
 /** How far a card stands off the pointer (or the point it is set beside), and from the viewport's edge. */
 export const CARD_GAP = 14;
@@ -25,8 +26,11 @@ export class HoverCard {
   /** The card's size, read when what it says changes (reading it is a layout, and the pointer moves far more often than the text does). */
   #size: { w: number; h: number } | null = null;
   #popover: boolean;
+  /** A card set beside something chosen (a pinned candle), shown whether or not hover boxes are (hover-info.ts). */
+  #pinned: boolean;
 
-  constructor(doc: Document = document) {
+  constructor(doc: Document = document, options: { pinned?: boolean } = {}) {
+    this.#pinned = options.pinned === true;
     this.root = el('div', { class: 'hovercard', role: 'tooltip' });
     // The popover API puts the card in the top layer, above panels and dialogs; without it a plain fixed box is used.
     this.#popover = typeof this.root.showPopover === 'function';
@@ -36,6 +40,7 @@ export class HoverCard {
 
   /** Show `lines` for a pointer at viewport position (x, y). */
   show(lines: readonly InfoLine[], x: number, y: number): void {
+    if (!this.#pinned && !hoverInfoShown()) { this.hide(); return; }
     const key = lines.map(l => `${l.label ?? ''}\u0001${l.text}\u0001${l.color ?? ''}${l.bold ? 'b' : ''}${l.rule ? 'r' : ''}${l.wrap ? 'w' : ''}`).join('\u0002');
     let measure = false;
     if (key !== this.#key) {

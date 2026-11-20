@@ -3003,5 +3003,7 @@
  "How solid the blocks inside the value area are.": "价值区域内方块的实度。",
  "Outside opacity": "区域外不透明度",
  "How solid the blocks outside the value area are: lower makes the value area stand out.": "价值区域外方块的实度：越低，价值区域越突出。",
- "Every TPO colour and opacity back to the theme's.": "将所有TPO颜色和不透明度恢复为主题默认值。"
+ "Every TPO colour and opacity back to the theme's.": "将所有TPO颜色和不透明度恢复为主题默认值。",
+ "Hover info box": "悬停信息框",
+ "Hover info box: the box of figures beside the mouse pointer over the chart and its panes (a TPO row, a footprint cell, the book at a price, a script's values). Off, the crosshair and the price and time on the axes still follow the pointer, and a finger held on the chart keeps its box.": "悬停信息框：鼠标指针在图表及其各窗格上方时旁边显示的数字框（TPO 行、足迹单元格、某价格处的订单簿、脚本的数值）。关闭后，十字线以及坐标轴上的价格和时间仍跟随指针；手指按住图表时仍会显示其信息框。"
 }

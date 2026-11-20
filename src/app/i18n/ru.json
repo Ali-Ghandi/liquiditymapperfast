@@ -3256,5 +3256,7 @@
  "How solid the blocks inside the value area are.": "Насколько плотны блоки внутри зоны стоимости.",
  "Outside opacity": "Непрозрачность вне зоны",
  "How solid the blocks outside the value area are: lower makes the value area stand out.": "Насколько плотны блоки вне зоны стоимости: меньше — зона стоимости заметнее.",
- "Every TPO colour and opacity back to the theme's.": "Все цвета и непрозрачность TPO возвращаются к цветам темы."
+ "Every TPO colour and opacity back to the theme's.": "Все цвета и непрозрачность TPO возвращаются к цветам темы.",
+ "Hover info box": "Инфоокно при наведении",
+ "Hover info box: the box of figures beside the mouse pointer over the chart and its panes (a TPO row, a footprint cell, the book at a price, a script's values). Off, the crosshair and the price and time on the axes still follow the pointer, and a finger held on the chart keeps its box.": "Инфоокно при наведении: окно с цифрами рядом с указателем мыши над графиком и его панелями (строка TPO, ячейка футпринта, стакан на цене, значения скрипта). Когда выключено, перекрестие и цена и время на осях по-прежнему следуют за указателем, а палец, удерживаемый на графике, сохраняет своё окно."
 }

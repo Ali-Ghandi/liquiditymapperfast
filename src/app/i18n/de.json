@@ -3160,5 +3160,7 @@
  "How solid the blocks inside the value area are.": "Wie deckend die Blöcke innerhalb der Value Area sind.",
  "Outside opacity": "Deckkraft außerhalb",
  "How solid the blocks outside the value area are: lower makes the value area stand out.": "Wie deckend die Blöcke außerhalb der Value Area sind: niedriger hebt die Value Area hervor.",
- "Every TPO colour and opacity back to the theme's.": "Alle TPO-Farben und Deckkräfte zurück auf die des Themas."
+ "Every TPO colour and opacity back to the theme's.": "Alle TPO-Farben und Deckkräfte zurück auf die des Themas.",
+ "Hover info box": "Hover-Infofeld",
+ "Hover info box: the box of figures beside the mouse pointer over the chart and its panes (a TPO row, a footprint cell, the book at a price, a script's values). Off, the crosshair and the price and time on the axes still follow the pointer, and a finger held on the chart keeps its box.": "Hover-Infofeld: das Feld mit Zahlen neben dem Mauszeiger über dem Chart und seinen Bereichen (eine TPO-Zeile, eine Footprint-Zelle, das Orderbuch bei einem Preis, die Werte eines Skripts). Aus folgen das Fadenkreuz und Preis und Zeit an den Achsen weiter dem Zeiger, und ein auf dem Chart gehaltener Finger behält sein Feld."
 }

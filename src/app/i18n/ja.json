@@ -3003,5 +3003,7 @@
  "How solid the blocks inside the value area are.": "バリューエリア内のブロックの濃さ。",
  "Outside opacity": "外側の不透明度",
  "How solid the blocks outside the value area are: lower makes the value area stand out.": "バリューエリア外のブロックの濃さ。低くするとバリューエリアが際立ちます。",
- "Every TPO colour and opacity back to the theme's.": "TPOのすべての色と不透明度をテーマの設定に戻します。"
+ "Every TPO colour and opacity back to the theme's.": "TPOのすべての色と不透明度をテーマの設定に戻します。",
+ "Hover info box": "ホバー情報ボックス",
+ "Hover info box: the box of figures beside the mouse pointer over the chart and its panes (a TPO row, a footprint cell, the book at a price, a script's values). Off, the crosshair and the price and time on the axes still follow the pointer, and a finger held on the chart keeps its box.": "ホバー情報ボックス：チャートとその各ペインでマウスポインターの横に出る数値のボックス（TPOの行、フットプリントのセル、ある価格の板、スクリプトの値）。オフでも十字線と軸上の価格・時刻はポインターに付いてきます。チャートを指で長押ししたときのボックスはそのまま出ます。"
 }

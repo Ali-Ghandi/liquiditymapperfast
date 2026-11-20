@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { INFO, layoutInfo, paintInfoBox, type InfoLine } from '../src/app/infobox.ts';
 import { PALETTES } from '../src/app/theme.ts';
 import { placeCard } from '../src/app/hovercard.ts';
+import { setHoverInfo } from '../src/app/hover-info.ts';
 import { statCellLines, type StatCell } from '../src/app/panes/bar-stats.ts';
 import { rowCellAt, rowCellLines, type Bar } from '../src/app/panes/footprint.ts';
 import { distanceText, levelLines, venueCellLines, type LevelFacts } from '../src/app/panes/ladder-info.ts';
@@ -148,9 +149,11 @@ test('a box drawn says where it stands (a tap on the TPO block\'s box is checked
   }) as unknown as CanvasRenderingContext2D;
   const lines: InfoLine[] = [{ text: 'Y · Nov 12 12:00 – 12:30', bold: true }, { label: 'Row', text: '71,620 – 71,640' }, { text: 'Tap this box for the TPO menu', color: 'muted' }];
   const bounds = { x0: 0, y0: 0, x1: 390, y1: 700 };
+  setHoverInfo(true); // the Hover info box setting, off by default (hover-info.ts and its own test)
   const rect = paintInfoBox(ctx, lines, 380, 20, bounds, PALETTES.dark!, { placement: 'up' })!;
   assert.ok(rect && rect.w > 0 && rect.h > 0);
   assert.ok(rect.x >= bounds.x0 && rect.x + rect.w <= bounds.x1 && rect.y >= bounds.y0 && rect.y + rect.h <= bounds.y1, 'kept inside the map');
   assert.ok(fills.some(f => f[0] === rect.x && f[1] === rect.y && f[2] === rect.w && f[3] === rect.h), 'the rectangle returned is the one filled');
   assert.equal(paintInfoBox(ctx, [], 10, 10, bounds, PALETTES.dark!), null);
+  setHoverInfo(false);
 });

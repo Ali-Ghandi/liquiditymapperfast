@@ -72,6 +72,7 @@ import './styles.css';
 import './mobile.css';
 import './chrome.css';
 import { t } from './i18n.ts';
+import { setHoverInfo, watchHoverPointers } from './hover-info.ts';
 import { useMarkets } from './venue-marks.ts';
 import { historyHours, isHandheldPhone, savesData, type PhoneHistory } from './history-window.ts';
 
@@ -106,6 +107,8 @@ async function main(): Promise<void> {
   // The coin first: everything after it is built for that coin (BTC needs no list, so a BTC page does not wait for one).
   const choice = await chooseCoin(params);
   const store = new Store(forCoin(initialState(), choice.coin, choice.from));
+  // The box beside the pointer, on or off for every pane at once (hover-info.ts), set before the first frame.
+  setHoverInfo(store.state.hoverInfo); watchHoverPointers();
   useMarkets(() => store.state.markets);
   setTimeZone(store.state.timeZone);
   applyTheme(store.state.theme);
@@ -561,6 +564,7 @@ async function main(): Promise<void> {
   store.subscribe((state, changed) => {
     if (changed.has('keepAwake')) wake.set(state.keepAwake);
     // Every time on the page is written from the one setting: say it changed, and have what shows times draw again.
+    if (changed.has('hoverInfo')) { setHoverInfo(state.hoverInfo); heat.invalidate(); ladder.invalidate(); liq.invalidate(); candle.invalidate(); cvd.invalidate(); lower(); }
     if (changed.has('timeZone')) { setTimeZone(state.timeZone); heat.invalidate(); lower(); cvd.invalidate(); showStatus(); }
     if (changed.has('theme')) { glass.setPalette(applyTheme(state.theme)); for (const p of themed) p.setPalette(state.theme); metrics.recolour(); }
     if (changed.has('material')) { applyMaterial(); hub.setTape(tapeWanted()); }
@@ -665,7 +669,7 @@ async function main(): Promise<void> {
     if (changed.has('barCollapsed')) toolbar.setCollapsed(state.barCollapsed);
     if (['show', 'timeframe', 'marketId', 'disabledVenues', 'scope', 'markets', 'oiMarkets', 'customMarkets', 'oiInstrument', 'oiParts', 'seriesInstrument', 'range'].some(k => changed.has(k as never))) ls.invalidate();
     if (['show', 'candles', 'timeframe', 'marketId', 'disabledVenues', 'scope', 'markets', 'traded', 'timeZone', 'range', 'oi', 'oiInstrument', 'oiParts', 'oiFine'].some(k => changed.has(k as never))) delta.invalidate();
-    if (['markets', 'marketId', 'timeframe', 'layer', 'show', 'heat', 'theme', 'status', 'connected', 'disabledVenues', 'heatmapSource', 'levels', 'scope', 'sounds', 'soundState', 'lastSound', 'waveStrength', 'timeZone', 'absorption', 'highlight', 'range', 'rangeTool', 'liquidations', 'keyLevels', 'vwap', 'tpo', 'footprint', 'tabPrice', 'tabIcon', 'chartType', 'phoneHistory'].some(k => changed.has(k as never))) toolbar.sync(state, heat.window);
+    if (['markets', 'marketId', 'timeframe', 'layer', 'show', 'heat', 'theme', 'status', 'connected', 'disabledVenues', 'heatmapSource', 'levels', 'scope', 'sounds', 'soundState', 'lastSound', 'waveStrength', 'timeZone', 'absorption', 'highlight', 'range', 'rangeTool', 'liquidations', 'keyLevels', 'vwap', 'tpo', 'footprint', 'tabPrice', 'tabIcon', 'hoverInfo', 'chartType', 'phoneHistory'].some(k => changed.has(k as never))) toolbar.sync(state, heat.window);
   });
 
   for (const p of themed) p.setPalette(store.state.theme);

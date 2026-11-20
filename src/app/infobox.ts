@@ -1,5 +1,6 @@
 import { chromeFor, type Chrome, type Palette } from './theme.ts';
 import { drawVenueMark } from './venue-marks.ts';
+import { hoverInfoShown } from './hover-info.ts';
 
 /**
  * The small box drawn on a canvas beside the pointer to say what is under it: the Mirror comparison, a footprint row, a bar statistic,
@@ -85,7 +86,7 @@ export interface InfoRect { x: number; y: number; w: number; h: number }
 
 /** Draw `lines` in a box beside (x, y), kept inside `bounds`. */
 export function paintInfoBox(ctx: CanvasRenderingContext2D, lines: readonly InfoLine[], x: number, y: number, bounds: { x0: number; y0: number; x1: number; y1: number }, p: Palette, options: InfoOptions = {}): InfoRect | null {
-  if (!lines.length) return null;
+  if (!lines.length || !hoverInfoShown()) return null;
   const pick = options.pick ?? ((c: InfoColor): string => c === 'above' ? p.ask : c === 'below' ? p.bid : c === 'buy' ? p.candleUp : c === 'sell' ? p.candleDown : c === 'muted' ? p.muted : p.text);
   ctx.save(); ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
   const { rows, width: w, height: h } = layoutInfo((text, bold, kind) => { ctx.font = fontOf(bold, kind); return ctx.measureText(text).width; }, lines);

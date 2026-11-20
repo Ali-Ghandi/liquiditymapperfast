@@ -3003,5 +3003,7 @@
  "How solid the blocks inside the value area are.": "밸류 에어리어 안 블록의 진하기.",
  "Outside opacity": "바깥 불투명도",
  "How solid the blocks outside the value area are: lower makes the value area stand out.": "밸류 에어리어 밖 블록의 진하기. 낮출수록 밸류 에어리어가 돋보입니다.",
- "Every TPO colour and opacity back to the theme's.": "TPO의 모든 색과 불투명도를 테마 기본값으로 되돌립니다."
+ "Every TPO colour and opacity back to the theme's.": "TPO의 모든 색과 불투명도를 테마 기본값으로 되돌립니다.",
+ "Hover info box": "호버 정보 상자",
+ "Hover info box: the box of figures beside the mouse pointer over the chart and its panes (a TPO row, a footprint cell, the book at a price, a script's values). Off, the crosshair and the price and time on the axes still follow the pointer, and a finger held on the chart keeps its box.": "호버 정보 상자: 차트와 그 창들 위에서 마우스 포인터 옆에 나오는 수치 상자(TPO 행, 풋프린트 칸, 한 가격의 호가, 스크립트 값). 끄더라도 십자선과 축의 가격·시간은 계속 포인터를 따라가며, 차트를 손가락으로 길게 누르면 상자가 그대로 나옵니다."
 }

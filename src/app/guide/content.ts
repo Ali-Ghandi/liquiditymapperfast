@@ -141,6 +141,7 @@ export const SECTIONS: readonly Section[] = [
       { t: 'p', text: 'Mirror answers one question: *is there more on this side of the price, or the other?* Point at a price in the profile or the order book. The band between the price and your pointer is outlined, and so is the equal band on the other side. A box adds up both and says which is bigger. Move outward and watch the balance change with distance.' },
       { t: 'fig', id: 'mirror', caption: 'The pointer moves away from the price. The box compares the two bands as they grow.' },
       { t: 'note', kind: 'warn', text: 'Mirror only shows while you hover, and it is on unless you switch it off. Its switch is **Mirror** in the order book\'s **Cues** panel (the Cues key in the book\'s title bar; on a phone, behind the book\'s settings key): if hovering stops showing the box, check it there, as its state is saved between visits. On a touch screen, tap the profile or the order book to pin the box there, and tap again to let go.' },
+      { t: 'note', text: 'With a mouse, the box shows only while **Hover info box** is on (see below).' },
     ],
   },
   {
@@ -484,6 +485,7 @@ export const SECTIONS: readonly Section[] = [
       { t: 'p', text: 'The picture is saved with at least two pixels to each pixel of the page (more on a sharper screen), so it stays crisp. **GIF** records the same area for 1 to 15 seconds instead.' },
       { t: 'p', text: 'The **theme** menu (in the status bar; in Settings on a phone) has more than twenty themes, light and dark: hover one to preview it everywhere, click or tap to keep it. **Install** appears when your browser can install this page as an app; an iPhone or iPad has no prompt: choose Share, then Add to Home Screen.' },
       { t: 'p', text: 'The browser tab shows the price too: its title starts with the chart market\'s price and an arrow for the way the candle under way is going, and its icon draws that candle, so a pinned tab still tells you where the price is going. The clock button in the status bar (it reads Local or UTC) switches the page\'s times between your computer\'s time and UTC, and the **Language** button beside it switches the page and this guide between its twelve languages.' },
+      { t: 'p', text: '**Hover info box** (in the status bar; in Settings on a phone) brings back the box of figures beside the mouse pointer: a TPO row, a footprint cell, the book at a price, Mirror, a script\'s values, a bar of a pane under the map. It is off unless you switch it on, so pointing at the chart shows only the crosshair and the price and time on the axes. A finger held on the chart keeps its box either way, and a candle pinned in Stats keeps its card.' },
       { t: 'keys', rows: [
         ['[[S]]', 'Screenshot'],
         ['[[G]]', 'Go to a date and time'],
@@ -507,7 +509,7 @@ export const SECTIONS: readonly Section[] = [
         '**A phone only records while the page is open and awake.** A sleeping screen leaves a gap in the map; **Keep screen on** in Settings holds it awake. With all eleven markets the page reads about 200 to 300 MB an hour: on a mobile connection, switch some off in **Venues**.',
         '**Nothing you do leaves your machine.** The page talks to the exchanges and, only to read, to this site\'s history and levels services. Recordings live in your browser; clearing the site\'s data erases them.',
         '**A tab keeps the version it was opened with.** The site is updated often. When a newer version is out, the page says so, in the bottom bar on a computer and under the top bar on a phone, with a **Reload** button. It never reloads by itself, since a reload starts the live trades over; ✕ puts the notice away for a day.',
-        '**If something looks wrong**: check the connection status (the dot at the left of the bottom bar, at the top right on a phone), try Recenter, and if hovering shows nothing, check Mirror in the order book\'s Cues panel.',
+        '**If something looks wrong**: check the connection status (the dot at the left of the bottom bar, at the top right on a phone), try Recenter, and if pointing shows no box, switch on **Hover info box** and check Mirror in the order book\'s Cues panel.',
       ] },
     ],
   },

@@ -3154,5 +3154,7 @@
  "How solid the blocks inside the value area are.": "Değer alanının içindeki blokların ne kadar dolu olduğu.",
  "Outside opacity": "Dış opaklık",
  "How solid the blocks outside the value area are: lower makes the value area stand out.": "Değer alanı dışındaki blokların ne kadar dolu olduğu: düşük değer, değer alanını öne çıkarır.",
- "Every TPO colour and opacity back to the theme's.": "Tüm TPO renkleri ve opaklıkları temanınkilere döner."
+ "Every TPO colour and opacity back to the theme's.": "Tüm TPO renkleri ve opaklıkları temanınkilere döner.",
+ "Hover info box": "Üzerine gelince bilgi kutusu",
+ "Hover info box: the box of figures beside the mouse pointer over the chart and its panes (a TPO row, a footprint cell, the book at a price, a script's values). Off, the crosshair and the price and time on the axes still follow the pointer, and a finger held on the chart keeps its box.": "Üzerine gelince bilgi kutusu: grafik ve panelleri üzerinde fare işaretçisinin yanındaki rakam kutusu (bir TPO satırı, bir footprint hücresi, bir fiyattaki defter, bir betiğin değerleri). Kapalıyken artı imleci ve eksenlerdeki fiyat ve saat yine işaretçiyi izler; grafikte basılı tutulan bir parmak kutusunu korur."
 }

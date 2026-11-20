@@ -3213,5 +3213,7 @@
  "How solid the blocks inside the value area are.": "L'opacité des blocs à l'intérieur de la zone de valeur.",
  "Outside opacity": "Opacité hors zone",
  "How solid the blocks outside the value area are: lower makes the value area stand out.": "L'opacité des blocs hors de la zone de valeur : plus faible, elle fait ressortir la zone de valeur.",
- "Every TPO colour and opacity back to the theme's.": "Toutes les couleurs et opacités du TPO reviennent à celles du thème."
+ "Every TPO colour and opacity back to the theme's.": "Toutes les couleurs et opacités du TPO reviennent à celles du thème.",
+ "Hover info box": "Infobulle au survol",
+ "Hover info box: the box of figures beside the mouse pointer over the chart and its panes (a TPO row, a footprint cell, the book at a price, a script's values). Off, the crosshair and the price and time on the axes still follow the pointer, and a finger held on the chart keeps its box.": "Infobulle au survol : la boîte de chiffres à côté du pointeur de la souris sur le graphique et ses volets (une ligne TPO, une cellule de footprint, le carnet à un prix, les valeurs d’un script). Désactivée, le réticule et le prix et l’heure sur les axes suivent toujours le pointeur, et un doigt maintenu sur le graphique garde sa boîte."
 }

@@ -1496,7 +1496,7 @@ export class BarStatsPane extends TimePane {
 
   /** The cards of the pinned candles, left to right, each clear of the one before it (the candles may be a slot apart, and a card is a few hundred pixels wide). */
   #showPins(pins: readonly { lines: InfoLine[]; x: number; y: number }[]): void {
-    while (this.#pinCards.length < pins.length) this.#pinCards.push(new HoverCard());
+    while (this.#pinCards.length < pins.length) this.#pinCards.push(new HoverCard(document, { pinned: true }));
     let free = -Infinity;
     pins.forEach((pin, i) => { const card = this.#pinCards[i]!; card.show(pin.lines, Math.max(pin.x, free), pin.y); free = card.right + 6 - CARD_GAP; });
     for (let i = pins.length; i < this.#pinCards.length; i++) this.#pinCards[i]!.hide();

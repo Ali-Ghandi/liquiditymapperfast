@@ -3213,5 +3213,7 @@
  "How solid the blocks inside the value area are.": "Qué tan sólidos son los bloques dentro del área de valor.",
  "Outside opacity": "Opacidad fuera",
  "How solid the blocks outside the value area are: lower makes the value area stand out.": "Qué tan sólidos son los bloques fuera del área de valor: más baja hace destacar el área de valor.",
- "Every TPO colour and opacity back to the theme's.": "Todos los colores y opacidades del TPO vuelven a los del tema."
+ "Every TPO colour and opacity back to the theme's.": "Todos los colores y opacidades del TPO vuelven a los del tema.",
+ "Hover info box": "Cuadro de info al pasar",
+ "Hover info box: the box of figures beside the mouse pointer over the chart and its panes (a TPO row, a footprint cell, the book at a price, a script's values). Off, the crosshair and the price and time on the axes still follow the pointer, and a finger held on the chart keeps its box.": "Cuadro de info al pasar: el cuadro de cifras junto al puntero del ratón sobre el gráfico y sus paneles (una fila TPO, una celda de footprint, el libro en un precio, los valores de un script). Apagado, la cruz y el precio y la hora en los ejes siguen al puntero, y un dedo mantenido sobre el gráfico conserva su cuadro."
 }
