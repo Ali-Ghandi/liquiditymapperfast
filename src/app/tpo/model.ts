@@ -413,12 +413,15 @@ export function editedWindows(windows: readonly { key: string; from: number; to:
     if (cut <= w.from || cut >= w.to) continue;
     out.splice(i, 1, { key: `${w.key}|<${cut}`, from: w.from, to: cut, base: w.base, members: w.members, spans: w.spans }, { key: `${w.key}|>${cut}`, from: cut, to: w.to, base: w.base, members: w.members, spans: w.spans });
   }
-  for (const base of merges) {
+  // Replay boundaries in calendar order, independent of the order in which they were saved.
+  for (const base of [...new Set(merges)].sort((a, b) => (starts.get(a) ?? Infinity) - (starts.get(b) ?? Infinity))) {
     const from = starts.get(base);
     const b = out.find(w => w.members.includes(base) && w.from === from);
     if (!b) continue;
-    const a = out.find(w => w !== b && w.to === b.from);
-    if (!a) continue;
+    const candidates = out.filter(w => w !== b && w.to === b.from);
+    // Overlapping sessions can leave more than one possible predecessor. Never silently pick one.
+    if (candidates.length !== 1) continue;
+    const a = candidates[0]!;
     const merged: EditedWindow = { key: `${a.key}+${b.key}`, from: a.from, to: b.to, base: a.base, members: [...a.members, ...b.members.filter(m => !a.members.includes(m))], spans: [...a.spans, ...b.spans.filter(x => !a.members.includes(x.key))] };
     out.splice(out.indexOf(a), 1); out.splice(out.indexOf(b), 1, merged);
   }

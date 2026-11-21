@@ -568,8 +568,10 @@ export class HeatPane {
     const scope = editScope(currentCoin().coin, s.period, blockMsOf(s)), windows = this.#tpo.windows(this.#tpoFrame(state));
     const w = windows.find(x => x.key === prof.key), range = !w || w.base === 'range';
     // Merges join windows that touch (overlapping sessions never do); a Range's composite is no window to edit.
-    const before = range ? undefined : windows.find(x => x !== w && x.base !== 'range' && x.to === w!.from);
-    const after = range ? undefined : windows.find(x => x !== w && x.base !== 'range' && x.from === w!.to);
+    const predecessors = range ? [] : windows.filter(x => x !== w && x.base !== 'range' && x.to === w!.from);
+    const successors = range ? [] : windows.filter(x => x !== w && x.base !== 'range' && x.from === w!.to);
+    const before = predecessors.length === 1 ? predecessors[0] : undefined;
+    const after = successors.length === 1 && windows.filter(x => x !== successors[0] && x.base !== 'range' && x.to === successors[0]!.from).length === 1 ? successors[0] : undefined;
     const items: MenuItem[] = [
       { id: 'split', label: b && !hit.compact ? t('Split the window at {time}', { time: clock(b.t) }) : t('Split the window here'), disabled: range || hit.compact || !b || b.t <= prof.from },
       { id: 'prev', label: t('Merge with the window before'), disabled: !before },

@@ -238,6 +238,13 @@ test('a split inside a merged window cuts the member it names; the window keeps 
   assert.deepEqual(editedWindows(ws, [`${DAY + 28 * HALF}@a`], ['b'], HALF).map(w => [w.from, w.to]), [[0, 2 * DAY]]);
 });
 
+test('merge chains are independent of edit order and ambiguous predecessors are not chosen', () => {
+  const ws = [{ key: 'a', from: 0, to: DAY }, { key: 'b', from: DAY, to: 2 * DAY }, { key: 'c', from: 2 * DAY, to: 3 * DAY }];
+  assert.deepEqual(editedWindows(ws, [], ['c', 'b'], HALF), editedWindows(ws, [], ['b', 'c'], HALF));
+  const overlapping = [{ key: 'a', from: 0, to: DAY }, { key: 'x', from: HALF, to: DAY }, { key: 'b', from: DAY, to: 2 * DAY }];
+  assert.equal(editedWindows(overlapping, [], ['b'], HALF).length, 3);
+});
+
 // --- Candles from chosen markets, every window in view, the compact look (2026-11-11) ---
 
 const part = (id: string, blocks: Block[], gap = 0, heldTo = Infinity): Part => ({ id, blocks: blockMap(blocks), gap: () => gap, heldTo });

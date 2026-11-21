@@ -256,7 +256,17 @@ export class TpoLayer {
       for (let i = a; i < list.length && list[i]!.from < right; i++) if (list[i]!.to > t0) touching.push(list[i]!);
       base = lastWindows(touching, MAX_TPO_IN_VIEW, f.now);
       if (base.length > MAX_TPO_DRAWN) base = base.slice(-MAX_TPO_DRAWN);
-    } else base = this.#latest.windows({ ...f.state.traded, period: s.period }, f.state.timeZone, right, s.count);
+    } else {
+      const settings = { ...f.state.traded, period: s.period };
+      const selected = this.#latest.windows(settings, f.state.timeZone, right, s.count);
+      // A merge can reach behind the selected calendar windows. Include enough predecessors to reconstruct the whole chain.
+      const extra = s.merges[scope]?.length ?? 0;
+      const expanded = extra ? this.#latest.windows(settings, f.state.timeZone, right, s.count + extra) : selected;
+      const selectedKeys = new Set(selected.map(w => w.key));
+      const edited = editedWindows(expanded, s.splits[scope] ?? [], s.merges[scope] ?? [], blockMs);
+      const needed = new Set(edited.filter(w => w.members.some(m => selectedKeys.has(m))).flatMap(w => w.members));
+      base = expanded.filter(w => needed.has(w.key));
+    }
     const byKey = new Map(base.map(w => [w.key, w]));
     // A window's name is a date written in its zone, or a session's name: kept by key, so a pan does not write hundreds of dates again,
     // and written again when a session, the zone or the page's clock changes.

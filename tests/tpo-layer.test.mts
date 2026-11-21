@@ -75,6 +75,17 @@ function frame(tpo: Partial<TpoSettings>, view: { t0: number; t1: number }, peer
   return { state, view: new View({ t0: view.t0, t1: view.t1, p0: 84_000, p1: 96_000 }), pw: 1200, ph: 600, now: NOW, replay: false, peerIds };
 }
 
+test('a merged profile retains predecessors outside the selected window count', () => {
+  const layer = new TpoLayer(hub(standard), () => {}, Infinity);
+  const view = { t0: NOW - 10 * DAY, t1: NOW + DAY };
+  const days = layer.windows(frame({ count: 4, hollow: false }, view));
+  const merges = { 'BTC|day|30': [days[1]!.base, days[2]!.base, days[3]!.base] };
+  const result = layer.windows(frame({ count: 1, hollow: false, merges }, view));
+  assert.equal(result.length, 1);
+  assert.equal(result[0]!.from, days[0]!.from);
+  assert.equal(result[0]!.to, days[3]!.to);
+});
+
 test('panning by a day or refreshing the newest candles keeps every closed window\'s profile; only the window under way is worked out again', () => {
   for (const tpo of [{ hollow: false }, { source: 'chosen' as const, picks: ['binance/perp', 'bybit/perp', 'coinbase/spot'] }]) {
     const h = hub(standard), layer = new TpoLayer(h, () => {}, Infinity);
