@@ -250,7 +250,8 @@ export class TpoLayer {
     if (all) {
       // From the day's calendar: those touching the view (and the one before it), never more than the newest `MAX_TPO_IN_VIEW` of each kind
       // could use, nor older than the candles are kept; `MAX_TPO_DRAWN` in all, the newest.
-      const list = this.#calendarOf(f), t0 = Math.max(v.t0 - span, right - (MAX_TPO_IN_VIEW + 1) * span, f.now - TPO_REACH_MS), touching: ProfileWindow[] = [];
+      const mergeReach = ((s.merges[scope]?.length ?? 0) + 1) * span;
+      const list = this.#calendarOf(f), t0 = Math.max(v.t0 - mergeReach, right - (MAX_TPO_IN_VIEW + 1) * span, f.now - TPO_REACH_MS), touching: ProfileWindow[] = [];
       let a = 0, z = list.length;
       while (a < z) { const m = (a + z) >> 1; if (list[m]!.from < t0 - 8 * DAY) a = m + 1; else z = m; }
       for (let i = a; i < list.length && list[i]!.from < right; i++) if (list[i]!.to > t0) touching.push(list[i]!);

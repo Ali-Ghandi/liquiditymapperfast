@@ -245,6 +245,15 @@ test('merge chains are independent of edit order and ambiguous predecessors are 
   assert.equal(editedWindows(overlapping, [], ['b'], HALF).length, 3);
 });
 
+test('saving another merge does not discard earlier independent merges', () => {
+  const scope = 'BTC|day|30';
+  let settings = { ...TPO_DEFAULTS };
+  for (let i = 0; i < 60; i++) settings = withEdits(settings, 'merges', scope, list => [...list, `window-${i}`]);
+  assert.equal(settings.merges[scope]!.length, 60);
+  assert.equal(settings.merges[scope]![0], 'window-0');
+  assert.equal(readTpo(settings).merges[scope]!.length, 60);
+});
+
 // --- Candles from chosen markets, every window in view, the compact look (2026-11-11) ---
 
 const part = (id: string, blocks: Block[], gap = 0, heldTo = Infinity): Part => ({ id, blocks: blockMap(blocks), gap: () => gap, heldTo });

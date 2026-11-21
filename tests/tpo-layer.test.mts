@@ -86,6 +86,15 @@ test('a merged profile retains predecessors outside the selected window count', 
   assert.equal(result[0]!.to, days[3]!.to);
 });
 
+test('panning into a merged profile keeps its earlier calendar windows', () => {
+  const layer = new TpoLayer(hub(standard), () => {}, Infinity);
+  const days = layer.windows(frame({ count: 4, hollow: false }, { t0: NOW - 10 * DAY, t1: NOW + DAY }));
+  const merges = { 'BTC|day|30': [days[1]!.base, days[2]!.base, days[3]!.base] };
+  const result = layer.windows(frame({ count: 0, hollow: false, merges }, { t0: days[3]!.from + HALF, t1: NOW + DAY }));
+  const merged = result.find(w => w.members.includes(days[3]!.base));
+  assert.equal(merged?.from, days[0]!.from);
+});
+
 test('panning by a day or refreshing the newest candles keeps every closed window\'s profile; only the window under way is worked out again', () => {
   for (const tpo of [{ hollow: false }, { source: 'chosen' as const, picks: ['binance/perp', 'bybit/perp', 'coinbase/spot'] }]) {
     const h = hub(standard), layer = new TpoLayer(h, () => {}, Infinity);

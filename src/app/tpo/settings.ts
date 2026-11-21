@@ -104,7 +104,8 @@ export const TPO_MAX_BARS = 40_000;
 /** Coins whose own rows are kept, and scopes of edits (three per coin), the oldest going first. */
 const MAX_COINS = 20;
 /** Splits and merges kept per coin. */
-const MAX_EDITS = 40;
+// Keep enough edits for the full retained history; evicting the 41st boundary silently undid an older merge.
+const MAX_EDITS = 4000;
 
 const flag = (value: unknown, fallback: boolean): boolean => typeof value === 'boolean' ? value : fallback;
 const coinKey = (coin: string): boolean => /^[A-Z0-9]{1,20}$/.test(coin);
